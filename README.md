@@ -8,7 +8,7 @@
 
 ## Summary
 
-This notebook simulates a frequency domain EM experiment in which we have a current-dipole inside of a resistive casing. We plot the fields and fluxes and compute electric field-data on the surface and in a borehole. 
+This notebook simulates and inverts 3 component magnetic field data collected over a block in a halfspace. We assume there is no inducing field and that the block is remanently magnetized.  
 
 ## Contents
 
