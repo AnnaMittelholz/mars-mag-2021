@@ -12,5 +12,5 @@ dependencies:
   - jupyterlab
   - SimPEG=0.15.0
   - pip
-  pip:
+  - pip:
     - git+https://github.com/simpeg/discretize/tree/lheagy-patch-1
