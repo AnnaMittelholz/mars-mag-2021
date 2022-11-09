@@ -31,7 +31,7 @@ from pymatsolver import Pardiso as Solver
 
 # %% Choices for different sampling scenarios 
 
-inflight=0  # inflight sampling is 1; landed sampling is 0; 2 is a grid
+inflight=2  # inflight sampling is 1; landed sampling is 0; 2 is a grid
 use_topo=True     # topography or not? 
 gauss_noise=0   # large wavelength noise on is 1.
 
@@ -212,52 +212,6 @@ def plot_vector_model(
     ax.legend()
     ax.set_aspect(1)
 
-def plot_amplitude(
-        maxval, model, ax=None, quiver_opts=None, normal="Y", xlim=None, ylim=None, ind=None, plot_data=True, plot_grid=False
-    ):
-        if ax is None: 
-            fig, ax = plt.subplots(1, 1, figsize=(10, 4))
-
-        qo = {
-            "units":"xy", "scale":np.max(np.abs(model))/20,
-            "headwidth":7, "headlength":10, "headaxislength":10
-        }
-        
-        # overwrite default vals if user provides them 
-        if quiver_opts is not None:
-            for key, val in quiver_opts.items(): 
-                qo[key] = val 
-                
-        magnetization = full_mesh_magnetization(model)
-        Mtotal = np.sqrt(magnetization[:,0]**2 + magnetization[:,1]**2 + magnetization[:,2]**2)
-                
-        cb = plt.colorbar(
-            mesh.plot_slice(
-                Mtotal, "CC", clim=[0,maxval],normal=normal, ax=ax, view="abs", 
-                grid=plot_grid, ind=ind, quiver_opts=qo
-                )[0], ax=ax
-            )
-        
-        cb.set_label("amplitude magnetization (A/m)")
-
-        if normal.upper() == "X": 
-            if plot_data is True: 
-                ax.plot(survey_xyz[:, 1], survey_xyz[:, 2], "C1o", ms=2,label=False)
-            ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
-          #  ax.set_ylim([target_geometry[:,2].min()*3, survey_z.max()*4] if ylim is None else ylim)
-        elif normal.upper() == "Y": 
-            if plot_data is True: 
-                ax.plot(survey_xyz[:, 0], survey_xyz[:, 2], "C1o", ms=2)
-            ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
-          #  ax.set_ylim([target_geometry[:,2].min()*3, survey_z.max()*4] if ylim is None else ylim)
-        elif normal.upper() == "Z": 
-            if plot_data is True: 
-                ax.plot(survey_xyz[:, 0], survey_xyz[:, 1], "C1o", ms=2)
-            ax.set_xlim([survey_x.min()*1.25, survey_x.max()*1.25] if xlim is None else xlim)
-            ax.set_ylim([survey_x.min()*1.25, survey_x.max()*1.25] if ylim is None else ylim)
-        ax.legend()
-        ax.set_aspect(1)
-        
 
 # %% plot the model 
 fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
@@ -272,7 +226,7 @@ plt.tight_layout()
 # %% plot the model 
 maxval = target_magnetization_amplitude
 fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
-zind = 25
+zind = 27
 
 if gauss_noise > 0: 
     
@@ -453,6 +407,37 @@ ax[1].set_title(f"z={mesh.vectorCCz[27]}")
 fn = 'L2_invmodel.png'
 #plt.savefig(pn+fn)
 
+# %%More depth profiles
+#plt.figure(figsize = (18,8))
+
+#plt.subplot(231)
+
+fig,ax = plt.subplots(3,3,figsize=(15, 10))
+
+
+quiver_opts = {
+    "scale":np.max(np.abs(mrec_cartesian))/20,
+}
+
+plot_vector_model(maxval,mrec_cartesian, ax=ax[0,0], ind=30)
+plot_vector_model(maxval,mrec_cartesian, ax=ax[0,1], normal="Z", ind=28)
+plot_vector_model(maxval,mrec_cartesian, ax=ax[0,2], normal="Z", ind=27)
+plot_vector_model(maxval,mrec_cartesian, ax=ax[1,0], normal="Z", ind=26)
+plot_vector_model(maxval,mrec_cartesian, ax=ax[1,1], normal="Z", ind=25)
+plot_vector_model(maxval,mrec_cartesian, ax=ax[1,2], normal="Z", ind=24)
+plot_vector_model(maxval,mrec_cartesian, ax=ax[2,0], normal="Z", ind=23)
+plot_vector_model(maxval,mrec_cartesian, ax=ax[2,1], normal="Z", ind=22)
+plot_vector_model(maxval,mrec_cartesian, ax=ax[2,2], normal="Z", ind=21)
+
+ax[0,0].set_title(f"y={mesh.vectorCCy[30]}")
+ax[0,1].set_title(f"z={mesh.vectorCCz[28]}")
+ax[0,2].set_title(f"z={mesh.vectorCCz[27]}")
+ax[1,0].set_title(f"z={mesh.vectorCCz[26]}")
+ax[1,1].set_title(f"z={mesh.vectorCCz[25]}")
+ax[1,2].set_title(f"z={mesh.vectorCCz[24]}")
+ax[2,0].set_title(f"z={mesh.vectorCCz[23]}")
+ax[2,1].set_title(f"z={mesh.vectorCCz[22]}")
+ax[2,2].set_title(f"z={mesh.vectorCCz[21]}")
 
 # In[22]:
 
@@ -558,20 +543,11 @@ np.abs(sphere_map * mtest)[:actv.sum()].min()
 
 # PLOT
 maxval =5
-fig, ax = plt.subplots(2, 2, figsize=(18, 10), gridspec_kw={'width_ratios': [2, 1]})
+fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
 
 maxval=target_magnetization_amplitude
-plot_vector_model(maxval, sphere_map * mtest, ax=ax[0,0])
-plot_vector_model(maxval, sphere_map * mtest, ax=ax[0,1], normal="Z", ind=zind)  # APPEND WITHOUT GRID,plot_grid=False
-
-ax[0,0].set_title(f"y={mesh.vectorCCy[30]}")
-ax[0,1].set_title(f"z={mesh.vectorCCz[zind]}")
-
-quiver_opts = 'None'
-plot_amplitude(maxval,sphere_map * mtest, ax=ax[1,0])
-plot_amplitude(maxval,sphere_map * mtest, ax=ax[1,1], normal="Z", ind=zind)
-ax[1,0].set_title(f"")
-ax[1,1].set_title(f"")
+plot_vector_model(maxval, sphere_map * mtest, ax=ax[0])
+plot_vector_model(maxval, sphere_map * mtest, ax=ax[1], normal="Z", ind=zind)  # APPEND WITHOUT GRID,plot_grid=False
 
 plt.tight_layout()
 
@@ -631,15 +607,6 @@ fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1
 maxval=target_magnetization_amplitude
 plot_vector_model(maxval, sphere_map * mrec_parametric, ax=ax[0])
 plot_vector_model(maxval, sphere_map * mrec_parametric, ax=ax[1], normal="Z", ind=zind)  # APPEND WITHOUT GRID,plot_grid=False
-
-ax[0,0].set_title(f"y={mesh.vectorCCy[30]}")
-ax[0,1].set_title(f"z={mesh.vectorCCz[22]}")
-
-quiver_opts = 'None'
-plot_amplitude(maxval,sphere_map * mrec_parametric, ax=ax[1,0])
-plot_amplitude(maxval,sphere_map * mrec_parametric, ax=ax[1,1], normal="Z", ind=zind)
-ax[1,0].set_title(f"")
-ax[1,1].set_title(f"")
 
 plt.tight_layout()
 

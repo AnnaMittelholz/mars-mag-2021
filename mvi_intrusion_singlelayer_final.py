@@ -176,13 +176,13 @@ if gauss_noise > 0:  #inflight measuremenets
 
     mag_f = sp.ndimage.gaussian_filter(magnetization,2,order=0, output=None, mode='reflect', cval=0.0, truncate=4.0)
     mag_f[ind1, :] = target_magnetization
-    mag_f[ind2, :] = target_magnetization+50
-    mag_f[ind3, :] = target_magnetization+40
+    mag_f[ind2, :] = target_magnetization#+50
+    #mag_f[ind3, :] = target_magnetization+40
     model_f = mag_f[actv, :]
 
 magnetization[ind1, :] = target_magnetization
-magnetization[ind2, :] = target_magnetization+50
-magnetization[ind3, :] = target_magnetization+40
+magnetization[ind2, :] = target_magnetization#+50
+#magnetization[ind3, :] = target_magnetization+40
 model = magnetization[actv, :]
 
 active_cell_map = maps.InjectActiveCells(mesh=mesh, indActive=actv, valInactive=np.nan)
@@ -241,7 +241,7 @@ def plot_vector_model(
 
 fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
 zind = 9
-maxval=target_magnetization_amplitude+50
+maxval=target_magnetization_amplitude#+50
 plot_vector_model(maxval,model, ax=ax[0], plot_data=False, plot_grid=True)
 plot_vector_model(maxval,model, ax=ax[1], normal="Z", ind=zind, plot_data=False)  # APPEND WITHOUT GRID,plot_grid=False
 
@@ -419,13 +419,13 @@ if gauss_noise > 0:  #inflight measuremenets
 
     mag_f = sp.ndimage.gaussian_filter(magnetization,2,order=0, output=None, mode='reflect', cval=0.0, truncate=4.0)
     mag_f[ind1, :] = target_magnetization
-    mag_f[ind2, :] = target_magnetization+50
-    mag_f[ind3, :] = target_magnetization+40
+    mag_f[ind2, :] = target_magnetization#+50
+    #mag_f[ind3, :] = target_magnetization+40
     model_f = mag_f[actv, :]
 
 magnetization_1l[ind1, :] = target_magnetization
-magnetization_1l[ind2, :] = target_magnetization+50
-magnetization_1l[ind3, :] = target_magnetization+40
+magnetization_1l[ind2, :] = target_magnetization#+50
+#magnetization_1l[ind3, :] = target_magnetization+40
 model_1l = magnetization_1l[actv, :]
 
 active_cell_map = maps.InjectActiveCells(mesh=mesh, indActive=actv, valInactive=np.nan)
@@ -500,7 +500,7 @@ fig, ax = plt.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [2, 1
 quiver_opts = {
     "scale":np.max(np.abs(mrec_cartesian))/20,
 }
-maxval = target_magnetization_amplitude+30
+maxval = target_magnetization_amplitude#+30
 plot_vector_model(maxval,mrec_cartesian, ax=ax[0])
 plot_vector_model(maxval,mrec_cartesian, ax=ax[1], normal="Z",ind=0)
 ax[0].set_title(f"y={mesh.vectorCCy[30]}")
@@ -613,8 +613,8 @@ quiver_opts = {
 }
 
 m = spherical_map * mrec_spherical
-plot_vector_model(40,m, ax=ax[0])
-plot_vector_model(40,m, ax=ax[1], normal="Z", ind=zind)
+plot_vector_model(10,m, ax=ax[0])
+plot_vector_model(10,m, ax=ax[1], normal="Z", ind=zind)
 
 #plot_target_outline(ax[0], normal="Y")
 #plot_target_outline(ax[1], normal="Z")

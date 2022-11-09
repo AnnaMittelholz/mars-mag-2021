@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import Normalize
 import ipywidgets
 import random
+import math
 
 # SimPEG tools 
 import discretize
@@ -24,12 +25,12 @@ from SimPEG import (
     regularization,
     utils
 )
-from pymatsolver import Pardiso as Solver
+#from pymatsolver import Pardiso as Solver
 
 # In[3]: Flags for inflight sampling and large scale noise 
     
-inflight=2     # inflight sampling is 1; landed sampling is 0; 2 is mesh
-gauss_noise=0   # large wavelength noise on is 1.
+inflight=0     # inflight sampling is 1; landed sampling is 0; 2 is mesh
+gauss_noise=0  # large wavelength noise on is 1.
 use_topo=True 
      
     # %%
@@ -94,9 +95,6 @@ else:
 
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1, projection="3d")
-# ax.plot_trisurf(
-#     topo[:, 0], topo[:, 1], topo[:, 2], triangles=tri.simplices, cmap=plt.cm.Spectral
-# )
 ax.scatter3D(survey_xyz[:, 0], survey_xyz[:, 1], survey_xyz[:, 2], c="k", alpha=1)
 plt.show()
       
@@ -136,6 +134,9 @@ mesh
 ind = utils.model_builder.getIndicesSphere([0,0,-40], 120, mesh.gridCC)
 
 magnetization = np.zeros((mesh.nC, 3))
+magnetization[ind, :] = target_magnetization
+model = magnetization[actv, :]
+
 
 if gauss_noise > 0:  #inflight measuremenets 
 
@@ -148,12 +149,10 @@ if gauss_noise > 0:  #inflight measuremenets
 
     magnetization = np.reshape(nums, (mesh.nC,3))
 
-    mag_f = sp.ndimage.gaussian_filter(magnetization,2,order=0, output=None, mode='reflect', cval=0.0, truncate=4.0)
+    mag_f = sp.ndimage.gaussian_filter(magnetization,sigma=4,order=0, output=None, mode='nearest', cval=0.0, truncate=4.0)
     mag_f[ind, :] = target_magnetization
     model_f = mag_f[actv, :]
 
-magnetization[ind, :] = target_magnetization
-model = magnetization[actv, :]
 
 active_cell_map = maps.InjectActiveCells(mesh=mesh, indActive=actv, valInactive=np.nan)
 
@@ -207,16 +206,61 @@ def plot_vector_model(
     ax.legend()
     ax.set_aspect(1)
     
+def plot_amplitude(
+        maxval, model, ax=None, quiver_opts=None, normal="Y", xlim=None, ylim=None, ind=None, plot_data=True, plot_grid=False
+    ):
+        if ax is None: 
+            fig, ax = plt.subplots(1, 1, figsize=(10, 4))
+
+        qo = {
+            "units":"xy", "scale":np.max(np.abs(model))/20,
+            "headwidth":7, "headlength":10, "headaxislength":10
+        }
+        
+        # overwrite default vals if user provides them 
+        if quiver_opts is not None:
+            for key, val in quiver_opts.items(): 
+                qo[key] = val 
+                
+        magnetization = full_mesh_magnetization(model)
+        Mtotal = np.sqrt(magnetization[:,0]**2 + magnetization[:,1]**2 + magnetization[:,2]**2)
+                
+        cb = plt.colorbar(
+            mesh.plot_slice(
+                Mtotal, "CC", clim=[0,maxval],normal=normal, ax=ax, view="abs", 
+                grid=plot_grid, ind=ind, quiver_opts=qo
+                )[0], ax=ax
+            )
+        
+        cb.set_label("amplitude magnetization (A/m)")
+
+        if normal.upper() == "X": 
+            if plot_data is True: 
+                ax.plot(survey_xyz[:, 1], survey_xyz[:, 2], "C1o", ms=2,label=False)
+            ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
+          #  ax.set_ylim([target_geometry[:,2].min()*3, survey_z.max()*4] if ylim is None else ylim)
+        elif normal.upper() == "Y": 
+            if plot_data is True: 
+                ax.plot(survey_xyz[:, 0], survey_xyz[:, 2], "C1o", ms=2)
+            ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
+          #  ax.set_ylim([target_geometry[:,2].min()*3, survey_z.max()*4] if ylim is None else ylim)
+        elif normal.upper() == "Z": 
+            if plot_data is True: 
+                ax.plot(survey_xyz[:, 0], survey_xyz[:, 1], "C1o", ms=2)
+            ax.set_xlim([survey_x.min()*1.25, survey_x.max()*1.25] if xlim is None else xlim)
+            ax.set_ylim([survey_x.min()*1.25, survey_x.max()*1.25] if ylim is None else ylim)
+        ax.legend()
+        ax.set_aspect(1)
     
 # %%  Plot Model
-maxval = 5
+maxval=5
 
 if gauss_noise > 0: 
     
     fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
 
-    zind = 27
-    maxval=target_magnetization_amplitude
+    zind = 23
+    
     plot_vector_model(maxval,model_f, ax=ax[0])
     plot_vector_model(maxval,model_f, ax=ax[1], normal="Z", ind=zind)  # APPEND WITHOUT GRID,plot_grid=False
 
@@ -227,9 +271,19 @@ if gauss_noise > 0:
 # %%
 fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
 
-zind = 27
+
+zind = 25
 plot_vector_model(maxval,model, ax=ax[0])
 plot_vector_model(maxval,model, ax=ax[1], normal="Z", ind=zind)  # APPEND WITHOUT GRID,plot_grid=False
+plt.tight_layout()
+
+fn = 'Model2.png'
+
+
+fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
+
+plot_amplitude(maxval,model, ax=ax[0],plot_grid=True)
+plot_amplitude(maxval,model, ax=ax[1], normal="Z", ind=zind,plot_grid=True)  # APPEND WITHOUT GRID,plot_grid=False
 plt.tight_layout()
 
 fn = 'Model2.png'
@@ -237,20 +291,6 @@ fn = 'Model2.png'
 if gauss_noise > 0: 
     model = model_f
 
-# In[13]:
-
-def plot_target_outline(ax, normal="Y", plot_opts={"color":"C3", "lw":3}):
-    if normal.upper() == "X": 
-        x_target = np.hstack([target_geometry[:, 1], target_geometry[::-1, 1], target_geometry[0, 1]])
-        y_target = np.hstack([target_geometry[0, 2], target_geometry[:, 2], target_geometry[::-1, 2]])
-    elif normal.upper() == "Y": 
-        x_target = np.hstack([target_geometry[:, 0], target_geometry[::-1, 0], target_geometry[0, 0]])
-        y_target = np.hstack([target_geometry[0, 2], target_geometry[:, 2], target_geometry[::-1, 2]])
-    elif normal.upper() == "Z":
-        x_target = np.hstack([target_geometry[:, 0], target_geometry[::-1, 0], target_geometry[0, 0]])
-        y_target = np.hstack([target_geometry[0, 1], target_geometry[:, 1], target_geometry[::-1, 1]])
-    
-    ax.plot(x_target, y_target, **plot_opts)
 
 # %%
 
@@ -315,11 +355,39 @@ def plot_data_profile(data, plot_opts=None, ax=None, xlim=None, ylim=None, label
 
 # In[46]:
 
-ax = plot_data_profile(synthetic_data.dclean, label="clean")
-ax = plot_data_profile(synthetic_data.dobs, ax=ax, plot_opts={"marker":"o", "alpha":0.5}, label="observed")
+ax=plot_data_profile(synthetic_data.dclean, label=False)
+ax=plot_data_profile(synthetic_data.dobs, ax=ax, plot_opts={"marker":"o", "alpha":0.5}, label=False)
  
 fn = 'Data_Profiles.png'
 
+# %%
+fig, ax = plt.subplots(1, 4, figsize=(20, 5), gridspec_kw={'width_ratios': [1,1,1, 1]})
+
+d_obs = synthetic_data.dobs.reshape((survey_xyz.shape[0], len(components)))
+B_obs = np.sqrt(d_obs[:,0]**2 + d_obs[:,1]**2 + d_obs[:,2]**2)
+
+vvmin = np.min(d_obs)
+vvmax = np.max(d_obs)
+
+if abs(vvmin)<abs(vvmax):
+    vvmin = -vvmax
+    
+if abs(vvmax)<abs(vvmin):
+    vvmax = -vvmin
+    
+
+ax[0].scatter(survey_xyz[:, 0], survey_xyz[:, 1], marker='o',c=B_obs,s=100, cmap='viridis',vmin=vvmin,vmax=vvmax)
+ax[0].set_title("|B|")
+ax[1].scatter(survey_xyz[:, 0], survey_xyz[:, 1], marker='o',c=d_obs[:,0],s=100, cmap='viridis',vmin=vvmin,vmax=vvmax)
+ax[1].set_title("Bx")
+ax[2].scatter(survey_xyz[:, 0], survey_xyz[:, 1], marker='o',c=d_obs[:,1],s=100, cmap='viridis',vmin=vvmin,vmax=vvmax)
+ax[2].set_title("By")
+sc =ax[3].scatter(survey_xyz[:, 0], survey_xyz[:, 1], marker='o',c=d_obs[:,2],s=100, cmap='viridis',vmin=vvmin,vmax=vvmax)
+ax[3].set_title("Bz")
+cbar = fig.colorbar(sc)
+
+
+fn = 'Data_Profiles.png'
 
 # %% NOW KEEP GEOMETRY
 
@@ -373,36 +441,37 @@ mrec_cartesian = inv.run(m0)
 
 # In[57]:
 
-maxval =5
-fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
+
+fig, ax = plt.subplots(2, 2, figsize=(17, 10), gridspec_kw={'width_ratios': [2, 1]})
 
 quiver_opts = {
     "scale":np.max(np.abs(mrec_cartesian))/20,
 }
 
-plot_vector_model(maxval,mrec_cartesian, ax=ax[0])
-plot_vector_model(maxval,mrec_cartesian, ax=ax[1], normal="Z", ind=27)
-
-#plot_target_outline(ax[0], normal="Y")
-#plot_target_outline(ax[1], normal="Z")
-
- 
+plot_vector_model(maxval,mrec_cartesian, ax=ax[0,0])
+plot_vector_model(maxval,mrec_cartesian, ax=ax[0,1], normal="Z", ind=25)
+ax[0,0].set_title(f"y={mesh.vectorCCy[30]}")
+ax[0,1].set_title(f"z={mesh.vectorCCz[22]}")
+quiver_opts='None'
+plot_amplitude(maxval,mrec_cartesian, ax=ax[1,0])
+plot_amplitude(maxval,mrec_cartesian, ax=ax[1,1], normal="Z", ind=25)
+ax[1,0].set_title(f"")
+ax[1,1].set_title(f"")
+plt.tight_layout()
 fn = 'L2_invmodel.png'
 #plt.savefig(pn+fn)
 
 # In[58]:
 
 
-ax = plot_data_profile(synthetic_data.dobs, plot_opts={"marker":"o", "lw":0}, label="observed")
-ax = plot_data_profile(inv_prob.dpred, ax=ax, label="predicted")
+ax = plot_data_profile(synthetic_data.dobs, plot_opts={"marker":"o", "lw":0}, label=False)#"observed")
+ax = plot_data_profile(inv_prob.dpred, ax=ax, label=False)#"predicted")
  
 fn = 'L2_inv_obs_pred.png'
 #plt.savefig(pn+fn)
 
 # %%
 fig,ax = plt.subplots(3,3,figsize=(15, 10))
-
-
 quiver_opts = {
     "scale":np.max(np.abs(mrec_cartesian))/20,
 }
@@ -426,21 +495,38 @@ ax[1,2].set_title(f"z={mesh.vectorCCz[24]}")
 ax[2,0].set_title(f"z={mesh.vectorCCz[23]}")
 ax[2,1].set_title(f"z={mesh.vectorCCz[22]}")
 ax[2,2].set_title(f"z={mesh.vectorCCz[21]}")
-# In[59]:
 
-#
-#if len(survey_y) > 1: 
-#    plot_2d_data(synthetic_data.dobs, title="observed", xlabel=False)
-#    plot_2d_data(inv_prob.dpred, title="predicted", xlabel=False)
-#    plot_2d_data(synthetic_data.dobs - inv_prob.dpred, title="residual")
-#
-#    plt.tight_layout()
-#    fn = 'L2_inv_obs_pred_res.png'
-#    plt.savefig(pn+fn)
+# %%
 
-# ### inversion in spherical coordinates
-# 
-# This allows us to impose regularization on amplitude and direction independently. 
+fig,ax = plt.subplots(3,4,figsize=(15, 10))
+
+quiver_opts='None'
+plot_amplitude(maxval,mrec_cartesian, ax=ax[0,0], ind=31)
+plot_amplitude(maxval,model, ax=ax[0,1], ind=31)
+plot_amplitude(maxval,mrec_cartesian, ax=ax[0,2], normal="Z", ind=27)
+plot_amplitude(maxval,model, ax=ax[0,3], normal="Z", ind=27) 
+plot_amplitude(maxval,mrec_cartesian, ax=ax[1,0], normal="Z", ind=25)
+plot_amplitude(maxval,model, ax=ax[1,1], normal="Z", ind=25) 
+plot_amplitude(maxval,mrec_cartesian, ax=ax[1,2], normal="Z", ind=24)
+plot_amplitude(maxval,model, ax=ax[1,3], normal="Z", ind=24) 
+plot_amplitude(maxval,mrec_cartesian, ax=ax[2,0], normal="Z", ind=22)
+plot_amplitude(maxval,model, ax=ax[2,1], normal="Z", ind=22) 
+plot_amplitude(maxval,mrec_cartesian, ax=ax[2,2], normal="Z", ind=20)
+plot_amplitude(maxval,model, ax=ax[2,3], normal="Z", ind=20) 
+
+ax[0,0].set_title(f"y={mesh.vectorCCy[31]}")
+ax[0,1].set_title(f"z={mesh.vectorCCz[31]}")
+ax[0,2].set_title(f"z={mesh.vectorCCz[27]}")
+ax[0,3].set_title(f"z={mesh.vectorCCz[27]}")
+ax[1,0].set_title(f"z={mesh.vectorCCz[25]}")
+ax[1,1].set_title(f"z={mesh.vectorCCz[25]}")
+ax[1,2].set_title(f"z={mesh.vectorCCz[24]}")
+ax[1,3].set_title(f"z={mesh.vectorCCz[24]}")
+ax[2,0].set_title(f"z={mesh.vectorCCz[22]}")
+ax[2,1].set_title(f"z={mesh.vectorCCz[22]}")
+ax[2,2].set_title(f"z={mesh.vectorCCz[20]}")
+ax[2,3].set_title(f"z={mesh.vectorCCz[20]}")
+
 
 # In[60]:
 
@@ -500,15 +586,12 @@ inv_prob_spherical = inverse_problem.BaseInvProblem(
 
 # In[65]:
 
-
-# directives 
 spherical_projection = directives.ProjectSphericalBounds()  
 sensitivity_weights = directives.UpdateSensitivityWeights()
 IRLS = directives.Update_IRLS(
     sphericalDomain=True, beta_tol=0.1
 )
 update_Jacobi = directives.UpdatePreconditioner()
-
 
 # In[66]:
 
@@ -524,51 +607,34 @@ mrec_spherical = inv_spherical.run(mstart)
 
 
 # In[68]:
-maxval=5
-zind = 27
-fig, ax = plt.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [2, 1]})
+
+zind = 25
+fig, ax = plt.subplots(2, 2, figsize=(18, 10), gridspec_kw={'width_ratios': [2, 1]})
 
 quiver_opts = {
     "scale":np.max(np.abs(mrec_spherical))/20,
 }
 
 m = spherical_map * mrec_spherical
-plot_vector_model(maxval,m, ax=ax[0])
-plot_vector_model(maxval,m, ax=ax[1], normal="Z", ind=zind)
+plot_vector_model(maxval,m, ax=ax[0,0])
+plot_vector_model(maxval,m, ax=ax[0,1], normal="Z", ind=zind)
+ax[0,0].set_title(f"y={mesh.vectorCCy[30]}")
+ax[0,1].set_title(f"z={mesh.vectorCCz[22]}")
+
+quiver_opts = 'None'
+plot_amplitude(maxval,m, ax=ax[1,0])
+plot_amplitude(maxval,m, ax=ax[1,1], normal="Z", ind=zind)
+ax[1,0].set_title(f"")
+ax[1,1].set_title(f"")
+
 plt.tight_layout()
-#plot_target_outline(ax[0], normal="Y")
-#plot_target_outline(ax[1], normal="Z")
 fn = 'sparse_invmodel.png'
-#plt.savefig(pn+fn)
-
-zind = 24
-fig, ax = plt.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [2, 1]})
-
-quiver_opts = {
-    "scale":np.max(np.abs(mrec_spherical))/20,
-}
-
-m = spherical_map * mrec_spherical
-plot_vector_model(maxval,m, ax=ax[0])
-plot_vector_model(maxval,m, ax=ax[1], normal="Z", ind=zind)
-plt.tight_layout()
-#plot_target_outline(ax[0], normal="Y")
-#plot_target_outline(ax[1], normal="Z")
-fn = 'sparse_invmodel2.png'
-#plt.savefig(pn+fn)
-
 
 
 # In[69]:
-
-
-ax = plot_data_profile(synthetic_data.dobs, plot_opts={"marker":"o", "lw":0}, label="observed")
-ax = plot_data_profile(inv_prob_spherical.dpred, ax=ax, label="predicted")
-
+ax = plot_data_profile(synthetic_data.dobs, plot_opts={"marker":"o", "lw":0}, label=False)
+ax = plot_data_profile(inv_prob_spherical.dpred, ax=ax, label=False)#"predicted")
 fn = 'sparse_inv_obs_pred.png'
-
-
-#plt.savefig(pn+fn)
 
 # %%
 
@@ -598,6 +664,37 @@ ax[1,2].set_title(f"z={mesh.vectorCCz[24]}")
 ax[2,0].set_title(f"z={mesh.vectorCCz[23]}")
 ax[2,1].set_title(f"z={mesh.vectorCCz[22]}")
 ax[2,2].set_title(f"z={mesh.vectorCCz[21]}")
+
+
+# %%
+fig,ax = plt.subplots(3,4,figsize=(15, 10))
+
+quiver_opts='None'
+plot_amplitude(maxval,m, ax=ax[0,0], ind=31)
+plot_amplitude(maxval,model, ax=ax[0,1], ind=31)
+plot_amplitude(maxval,m, ax=ax[0,2], normal="Z", ind=27)
+plot_amplitude(maxval,model, ax=ax[0,3], normal="Z", ind=27) 
+plot_amplitude(maxval,m, ax=ax[1,0], normal="Z", ind=25)
+plot_amplitude(maxval,model, ax=ax[1,1], normal="Z", ind=25) 
+plot_amplitude(maxval,m, ax=ax[1,2], normal="Z", ind=24)
+plot_amplitude(maxval,model, ax=ax[1,3], normal="Z", ind=24) 
+plot_amplitude(maxval,m, ax=ax[2,0], normal="Z", ind=22)
+plot_amplitude(maxval,model, ax=ax[2,1], normal="Z", ind=22) 
+plot_amplitude(maxval,m, ax=ax[2,2], normal="Z", ind=20)
+plot_amplitude(maxval,model, ax=ax[2,3], normal="Z", ind=20) 
+
+ax[0,0].set_title(f"y={mesh.vectorCCy[31]}")
+ax[0,1].set_title(f"z={mesh.vectorCCz[31]}")
+ax[0,2].set_title(f"z={mesh.vectorCCz[27]}")
+ax[0,3].set_title(f"z={mesh.vectorCCz[27]}")
+ax[1,0].set_title(f"z={mesh.vectorCCz[25]}")
+ax[1,1].set_title(f"z={mesh.vectorCCz[25]}")
+ax[1,2].set_title(f"z={mesh.vectorCCz[24]}")
+ax[1,3].set_title(f"z={mesh.vectorCCz[24]}")
+ax[2,0].set_title(f"z={mesh.vectorCCz[22]}")
+ax[2,1].set_title(f"z={mesh.vectorCCz[22]}")
+ax[2,2].set_title(f"z={mesh.vectorCCz[20]}")
+ax[2,3].set_title(f"z={mesh.vectorCCz[20]}")
 
 
 

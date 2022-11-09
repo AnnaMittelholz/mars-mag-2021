@@ -211,7 +211,55 @@ def plot_vector_model(
     ax.legend()
     ax.set_aspect(1)
     
+    # %%  add amplitude plot
     
+def plot_amplitude(
+        maxval, model, ax=None, quiver_opts=None, normal="Y", xlim=None, ylim=None, ind=None, plot_data=True, plot_grid=False
+    ):
+        if ax is None: 
+            fig, ax = plt.subplots(1, 1, figsize=(10, 4))
+
+        qo = {
+            "units":"xy", "scale":np.max(np.abs(model))/20,
+            "headwidth":7, "headlength":10, "headaxislength":10
+        }
+        
+        # overwrite default vals if user provides them 
+        if quiver_opts is not None:
+            for key, val in quiver_opts.items(): 
+                qo[key] = val 
+                
+        magnetization = full_mesh_magnetization(model)
+        Mtotal = np.sqrt(magnetization[:,0]**2 + magnetization[:,1]**2 + magnetization[:,2]**2)
+                
+        cb = plt.colorbar(
+            mesh.plot_slice(
+                Mtotal, "CC", clim=[0,maxval],normal=normal, ax=ax, view="abs", 
+                grid=plot_grid, ind=ind, quiver_opts=qo
+                )[0], ax=ax
+            )
+        
+        cb.set_label("amplitude magnetization (A/m)")
+
+        if normal.upper() == "X": 
+            if plot_data is True: 
+                ax.plot(survey_xyz[:, 1], survey_xyz[:, 2], "C1o", ms=2,label=False)
+            ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
+          #  ax.set_ylim([target_geometry[:,2].min()*3, survey_z.max()*4] if ylim is None else ylim)
+        elif normal.upper() == "Y": 
+            if plot_data is True: 
+                ax.plot(survey_xyz[:, 0], survey_xyz[:, 2], "C1o", ms=2)
+            ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
+          #  ax.set_ylim([target_geometry[:,2].min()*3, survey_z.max()*4] if ylim is None else ylim)
+        elif normal.upper() == "Z": 
+            if plot_data is True: 
+                ax.plot(survey_xyz[:, 0], survey_xyz[:, 1], "C1o", ms=2)
+            ax.set_xlim([survey_x.min()*1.25, survey_x.max()*1.25] if xlim is None else xlim)
+            ax.set_ylim([survey_x.min()*1.25, survey_x.max()*1.25] if ylim is None else ylim)
+        ax.legend()
+        ax.set_aspect(1)
+
+
 # %%  Plot Model
 
 fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
@@ -219,6 +267,14 @@ zind = 9
 maxval=target_magnetization_amplitude
 plot_vector_model(maxval,model, ax=ax[0], plot_data=False, plot_grid=True)
 plot_vector_model(maxval,model, ax=ax[1], normal="Z", ind=zind, plot_data=False)  # APPEND WITHOUT GRID,plot_grid=False
+
+plt.tight_layout()
+
+fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
+zind = 9
+maxval=target_magnetization_amplitude
+plot_amplitude(maxval,model, ax=ax[0], plot_data=False, plot_grid=True)
+plot_amplitude(maxval,model, ax=ax[1], normal="Z", ind=zind, plot_data=False)  # APPEND WITHOUT GRID,plot_grid=False
 
 plt.tight_layout()
 
@@ -378,6 +434,15 @@ plt.tight_layout()
 
 fn = 'Model2.png'
 
+fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
+
+zind = 0
+plot_amplitude(maxval,model_1l, ax=ax[1], normal="Z", ind=zind) 
+plot_amplitude(maxval,model_1l, ax=ax[0], plot_grid=True)  ## THIS IS NOT WORKING AND I DONT KNOW WHY
+plt.tight_layout()
+
+fn = 'Model2.png'
+
 # %%
 # create the regularization
 wires = maps.Wires(("x", nC), ("y", nC), ("z", nC))
@@ -438,7 +503,7 @@ fig, ax = plt.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [2, 1
 quiver_opts = {
     "scale":np.max(np.abs(mrec_cartesian))/20,
 }
-maxval = target_magnetization_amplitude
+maxval = 5#target_magnetization_amplitude
 plot_vector_model(maxval,mrec_cartesian, ax=ax[0])
 plot_vector_model(maxval,mrec_cartesian, ax=ax[1], normal="Z",ind=0)
 ax[0].set_title(f"y={mesh.vectorCCy[30]}")
@@ -446,6 +511,19 @@ ax[1].set_title(f"z={mesh.vectorCCz[0]}")
 
 fn = 'L2_invmodel.png'
 #plt.savefig(pn+fn)
+
+# %%
+fig, ax = plt.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [2, 1]})
+
+quiver_opts='None'
+plot_amplitude(maxval,mrec_cartesian, ax=ax[0])
+plot_amplitude(maxval,mrec_cartesian, ax=ax[1], normal="Z", ind=0)
+ax[1,0].set_title("")
+ax[1,1].set_title("")
+plt.tight_layout()
+fn = 'L2_invmodel.png'
+
+
 
 # %%
 # Plotting

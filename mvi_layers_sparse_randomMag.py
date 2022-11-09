@@ -461,8 +461,8 @@ m0 = np.zeros(nC * 3)
 mrec_cartesian = inv.run(m0)
 
 # %% and plot L2 inversion 
-zind = 13   
-maxval=2
+zind = 5   
+maxval=1
 fig, ax = plt.subplots(2, 2, figsize=(17, 10), gridspec_kw={'width_ratios': [2, 1]})
 
 quiver_opts = {
@@ -472,7 +472,7 @@ quiver_opts = {
 plot_vector_model(maxval,mrec_cartesian, ax=ax[0,0])
 plot_vector_model(maxval,mrec_cartesian, ax=ax[0,1], normal="Z", ind=zind)
 ax[0,0].set_title(f"y={mesh.vectorCCy[30]}")
-ax[0,1].set_title(f"z={mesh.vectorCCz[13]}")
+ax[0,1].set_title(f"z={mesh.vectorCCz[22]}")
 quiver_opts='None'
 plot_amplitude(maxval,mrec_cartesian, ax=ax[1,0])
 plot_amplitude(maxval,mrec_cartesian, ax=ax[1,1], normal="Z", ind=zind)
@@ -532,7 +532,7 @@ ax[2,2].set_title(f"z={mesh.vectorCCz[2]}")
 # %%
 
 fig,ax = plt.subplots(3,4,figsize=(15, 10))
-maxval=3
+maxval=2
 quiver_opts='None'
 plot_amplitude(maxval,mrec_cartesian, ax=ax[0,0], ind=14)
 plot_amplitude(maxval,model, ax=ax[0,1], ind=14)
@@ -631,6 +631,7 @@ reg_spherical = reg_amplitude + reg_theta + reg_phi
 
 # In[62]:
 
+
 simulation_spherical = mag.simulation.Simulation3DIntegral(
     mesh=mesh, survey=survey, chiMap=spherical_map, 
     actInd=actv, model_type="vector"
@@ -638,13 +639,21 @@ simulation_spherical = mag.simulation.Simulation3DIntegral(
 
 dmis_spherical = data_misfit.L2DataMisfit(simulation=simulation_spherical, data=synthetic_data)
 
+
+# In[63]:
+
 opt_spherical = optimization.InexactGaussNewton(
     maxIter=20, maxIterCG=20, tolCG=1e-4
 )
 
+# In[64]:
+
 inv_prob_spherical = inverse_problem.BaseInvProblem(
     dmis_spherical, reg_spherical, opt_spherical, beta=inv_prob.beta
 )
+
+# In[65]:
+
 
 # directives 
 spherical_projection = directives.ProjectSphericalBounds()  
@@ -669,8 +678,8 @@ mrec_spherical = inv_spherical.run(mstart)
 
 
 # In[68]:
-zind = 4 
-maxval=3
+zind = 33   
+    
 fig, ax = plt.subplots(2, 2, figsize=(17, 10), gridspec_kw={'width_ratios': [2, 1]})
 
 quiver_opts = {
@@ -680,7 +689,7 @@ quiver_opts = {
 plot_vector_model(maxval,mrec_spherical, ax=ax[0,0])
 plot_vector_model(maxval,mrec_spherical, ax=ax[0,1], normal="Z", ind=zind)
 ax[0,0].set_title(f"y={mesh.vectorCCy[30]}")
-ax[0,1].set_title(f"z={mesh.vectorCCz[13]}")
+ax[0,1].set_title(f"z={mesh.vectorCCz[22]}")
 quiver_opts='None'
 plot_amplitude(maxval,mrec_spherical, ax=ax[1,0])
 plot_amplitude(maxval,mrec_spherical, ax=ax[1,1], normal="Z", ind=zind)
@@ -689,8 +698,24 @@ ax[1,1].set_title(f"")
 plt.tight_layout()
 fn = 'L2_invmodel.png'
 #plt.savefig(pn+fn)
-plt.show()
 
+
+
+# zind = 33
+# fig, ax = plt.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [2, 1]})
+
+# quiver_opts = {
+#     "scale":np.max(np.abs(mrec_spherical))/20,
+# }
+
+# m = spherical_map * mrec_spherical
+# plot_vector_model(maxval,m, ax=ax[0])
+# plot_vector_model(maxval,m, ax=ax[1], normal="Z", ind=zind)
+# plt.tight_layout()
+# #plot_target_outline(ax[0], normal="Y")
+# #plot_target_outline(ax[1], normal="Z")
+# fn = 'sparse_invmodel.png'
+# #plt.savefig(pn+fn)
 
 # In[69]:
 
@@ -711,59 +736,56 @@ quiver_opts = {
     "scale":np.max(np.abs(mrec_spherical))/20,
 }
 #plot_vector_model(maxval,model, ax=ax[0,0], normal="Z", ind=10) 
-plot_vector_model(maxval,mrec_spherical, ax=ax[0,0], ind=10)
+plot_vector_model(maxval,mrec_spherical, ax=ax[0,0], ind=30)
 #plot_vector_model(maxval,model, ax=ax[0,0],plot_data=True,plot_grid=True )
-plot_vector_model(maxval,mrec_spherical, ax=ax[0,1], normal="Z", ind=14)
-plot_vector_model(maxval,mrec_spherical, ax=ax[0,2], normal="Z", ind=13)
-plot_vector_model(maxval,mrec_spherical, ax=ax[1,0], normal="Z", ind=12)
-plot_vector_model(maxval,mrec_spherical, ax=ax[1,1], normal="Z", ind=11)
-plot_vector_model(maxval,mrec_spherical, ax=ax[1,2], normal="Z", ind=10)
-plot_vector_model(maxval,mrec_spherical, ax=ax[2,0], normal="Z", ind=7)
-plot_vector_model(maxval,mrec_spherical, ax=ax[2,1], normal="Z", ind=6)
-plot_vector_model(maxval,mrec_spherical, ax=ax[2,2], normal="Z", ind=2)
+plot_vector_model(maxval,mrec_spherical, ax=ax[0,1], normal="Z", ind=33)
+plot_vector_model(maxval,mrec_spherical, ax=ax[0,2], normal="Z", ind=28)
+plot_vector_model(maxval,mrec_spherical, ax=ax[1,0], normal="Z", ind=23)
+plot_vector_model(maxval,mrec_spherical, ax=ax[1,1], normal="Z", ind=18)
+plot_vector_model(maxval,mrec_spherical, ax=ax[1,2], normal="Z", ind=13)
+plot_vector_model(maxval,mrec_spherical, ax=ax[2,0], normal="Z", ind=8)
+plot_vector_model(maxval,mrec_spherical, ax=ax[2,1], normal="Z", ind=5)
+plot_vector_model(maxval,mrec_spherical, ax=ax[2,2], normal="Z", ind=3)
 
 ax[0,0].set_title(f"Fwd Model at y={mesh.vectorCCz[10]}")
-ax[0,1].set_title(f"z={mesh.vectorCCz[14]}")
-ax[0,2].set_title(f"z={mesh.vectorCCz[13]}")
-ax[1,0].set_title(f"z={mesh.vectorCCz[12]}")
-ax[1,1].set_title(f"z={mesh.vectorCCz[11]}")
-ax[1,2].set_title(f"z={mesh.vectorCCz[10]}")
-ax[2,0].set_title(f"z={mesh.vectorCCz[7]}")
-ax[2,1].set_title(f"z={mesh.vectorCCz[6]}")
-ax[2,2].set_title(f"z={mesh.vectorCCz[2]}")
+ax[0,1].set_title(f"z={mesh.vectorCCz[33]}")
+ax[0,2].set_title(f"z={mesh.vectorCCz[28]}")
+ax[1,0].set_title(f"z={mesh.vectorCCz[23]}")
+ax[1,1].set_title(f"z={mesh.vectorCCz[18]}")
+ax[1,2].set_title(f"z={mesh.vectorCCz[13]}")
+ax[2,0].set_title(f"z={mesh.vectorCCz[8]}")
+ax[2,1].set_title(f"z={mesh.vectorCCz[5]}")
+ax[2,2].set_title(f"z={mesh.vectorCCz[3]}")
 
 
 # %%
 fig,ax = plt.subplots(3,4,figsize=(15, 10))
 
 quiver_opts='None'
-plot_amplitude(maxval,mrec_spherical, ax=ax[0,0], ind=14)
-plot_amplitude(maxval,model, ax=ax[0,1], ind=14)
-plot_amplitude(maxval,mrec_spherical, ax=ax[0,2], normal="Z", ind=13)
-plot_amplitude(maxval,model, ax=ax[0,3], normal="Z", ind=13) 
-plot_amplitude(maxval,mrec_spherical, ax=ax[1,0], normal="Z", ind=12)
-plot_amplitude(maxval,model, ax=ax[1,1], normal="Z", ind=12) 
-plot_amplitude(maxval,mrec_spherical, ax=ax[1,2], normal="Z", ind=10)
-plot_amplitude(maxval,model, ax=ax[1,3], normal="Z", ind=10) 
-plot_amplitude(maxval,mrec_spherical, ax=ax[2,0], normal="Z", ind=8)
-plot_amplitude(maxval,model, ax=ax[2,1], normal="Z", ind=8) 
-plot_amplitude(maxval,mrec_spherical, ax=ax[2,2], normal="Z", ind=6)
-plot_amplitude(maxval,model, ax=ax[2,3], normal="Z", ind=6) 
+plot_amplitude(maxval,mrec_spherical, ax=ax[0,0], ind=30)
+plot_amplitude(maxval,model, ax=ax[0,1], ind=30)
+plot_amplitude(maxval,mrec_spherical, ax=ax[0,2], normal="Z", ind=25)
+plot_amplitude(maxval,model, ax=ax[0,3], normal="Z", ind=25) 
+plot_amplitude(maxval,mrec_spherical, ax=ax[1,0], normal="Z", ind=20)
+plot_amplitude(maxval,model, ax=ax[1,1], normal="Z", ind=20) 
+plot_amplitude(maxval,mrec_spherical, ax=ax[1,2], normal="Z", ind=15)
+plot_amplitude(maxval,model, ax=ax[1,3], normal="Z", ind=15) 
+plot_amplitude(maxval,mrec_spherical, ax=ax[2,0], normal="Z", ind=10)
+plot_amplitude(maxval,model, ax=ax[2,1], normal="Z", ind=10) 
+plot_amplitude(maxval,mrec_spherical, ax=ax[2,2], normal="Z", ind=5)
+plot_amplitude(maxval,model, ax=ax[2,3], normal="Z", ind=5) 
+
+ax[0,0].set_title(f"y={mesh.vectorCCy[33]}")
+ax[0,1].set_title(f"z={mesh.vectorCCz[33]}")
+ax[0,2].set_title(f"z={mesh.vectorCCz[28]}")
+ax[0,3].set_title(f"z={mesh.vectorCCz[28]}")
+ax[1,0].set_title(f"z={mesh.vectorCCz[23]}")
+ax[1,1].set_title(f"z={mesh.vectorCCz[23]}")
+ax[1,2].set_title(f"z={mesh.vectorCCz[18]}")
+ax[1,3].set_title(f"z={mesh.vectorCCz[18]}")
+ax[2,0].set_title(f"z={mesh.vectorCCz[13]}")
+ax[2,1].set_title(f"z={mesh.vectorCCz[13]}")
+ax[2,2].set_title(f"z={mesh.vectorCCz[8]}")
+ax[2,3].set_title(f"z={mesh.vectorCCz[8]}")
 
 
-ax[0,0].set_title(f"y={mesh.vectorCCy[14]}")
-ax[0,1].set_title(f"z={mesh.vectorCCz[14]}")
-ax[0,2].set_title(f"z={mesh.vectorCCz[13]}")
-ax[0,3].set_title(f"z={mesh.vectorCCz[13]}")
-ax[1,0].set_title(f"z={mesh.vectorCCz[12]}")
-ax[1,1].set_title(f"z={mesh.vectorCCz[12]}")
-ax[1,2].set_title(f"z={mesh.vectorCCz[10]}")
-ax[1,3].set_title(f"z={mesh.vectorCCz[10]}")
-ax[2,0].set_title(f"z={mesh.vectorCCz[8]}")
-ax[2,1].set_title(f"z={mesh.vectorCCz[8]}")
-ax[2,2].set_title(f"z={mesh.vectorCCz[6]}")
-ax[2,3].set_title(f"z={mesh.vectorCCz[6]}")
-
-
-
-# %%
