@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-# general python ecosystem
+# %% general python ecosystem
 import numpy as np
 import scipy as sp
 from matplotlib import pyplot as plt
@@ -438,7 +438,7 @@ fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1
 
 zind = 0
 plot_amplitude(maxval,model_1l, ax=ax[1], normal="Z", ind=zind) 
-plot_amplitude(maxval,model_1l, ax=ax[0], plot_grid=True)  ## THIS IS NOT WORKING AND I DONT KNOW WHY
+plot_amplitude(maxval,model_1l, ax=ax[0])  ## THIS IS NOT WORKING AND I DONT KNOW WHY
 plt.tight_layout()
 
 fn = 'Model2.png'

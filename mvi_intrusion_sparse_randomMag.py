@@ -67,10 +67,11 @@ topo = np.c_[mkvc(xx), mkvc(yy), mkvc(zz)]
 
 
 if inflight == 1:  #inflight measuremenets 
-    line_length = 600
+    line_length = 500
     n_data_along_line = 30
     survey_x = np.linspace(-line_length/2, line_length/2, n_data_along_line)
     survey_y = np.r_[-50,0, 50] 
+    survey_y = np.r_[-10,0, 10] 
     survey_z = np.r_[10]
     survey_xyz = discretize.utils.ndgrid([survey_x, survey_y, survey_z])
     
@@ -79,11 +80,12 @@ if inflight == 1:  #inflight measuremenets
     
     survey_xyz[:,1] = survey_xyz[:,1]*xx
     survey_z = np.linspace(1, 30, int(n_data_along_line/2))
+    survey_z = np.linspace(1, 10, int(n_data_along_line/2))
     zz = np.concatenate([survey_z, np.flip(survey_z), survey_z, np.flip(survey_z), survey_z, np.flip(survey_z)])
     survey_xyz[:,2] = zz
 
 elif inflight == 2: # grid
-    line_length = 600
+    line_length = 500
     n_data_along_line = 15
     survey_x = np.linspace(-line_length/2, line_length/2, n_data_along_line)
     survey_y = survey_x
@@ -91,10 +93,12 @@ elif inflight == 2: # grid
     survey_xyz = discretize.utils.ndgrid([survey_x, survey_y, survey_z])
 
 else:
-    line_length = 600
+    line_length = 500
     n_data_along_line = 6
     survey_x = np.linspace(-line_length/2, line_length/2, n_data_along_line)
-    survey_y = np.r_[0] 
+    survey_x = np.r_[-250,-150,-30,-20,-10,0,10,20,30,150,250] 
+    
+    survey_y = np.r_[15] 
     survey_z = np.r_[1]
     survey_xyz = discretize.utils.ndgrid([survey_x, survey_y, survey_z])
 
@@ -287,6 +291,7 @@ def plot_amplitude(
         ax.legend()
         ax.set_aspect(1)
         
+# %%
 
 fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
 zind = 5
@@ -313,9 +318,8 @@ if gauss_noise > 0:
     fn = 'Model_Gauss.png'
     
 
-plot_vector_model(maxval,model, ax=ax[0])
-plot_vector_model(maxval,model, ax=ax[1], normal="Z", ind=zind)  # APPEND WITHOUT GRID,plot_grid=False
-
+plot_amplitude(maxval,model, ax=ax[0])
+plot_amplitude(maxval,model, ax=ax[1], normal="Z", ind=zind)  # APPEND WITHOUT GRID,plot_grid=False
 plt.tight_layout()
 
 fn = 'Model.png'
@@ -410,7 +414,7 @@ def plot_data_profile(data, plot_opts=None, ax=None, xlim=None, ylim=None, label
 
 # %% Plot synthetic data 
 
-ax = plot_data_profile(synthetic_data.dclean, label="clean")
+ax = plot_data_profile(synthetic_data.dclean, label=False)
 ax = plot_data_profile(synthetic_data.dobs, ax=ax, plot_opts={"marker":"o", "alpha":0.5}, label=False)
  
 fn = 'Data_Profiles.png'
@@ -462,7 +466,7 @@ mrec_cartesian = inv.run(m0)
 
 # %% and plot L2 inversion 
 zind = 13   
-maxval=2
+maxval=2.5
 fig, ax = plt.subplots(2, 2, figsize=(17, 10), gridspec_kw={'width_ratios': [2, 1]})
 
 quiver_opts = {
@@ -532,7 +536,7 @@ ax[2,2].set_title(f"z={mesh.vectorCCz[2]}")
 # %%
 
 fig,ax = plt.subplots(3,4,figsize=(15, 10))
-maxval=3
+maxval=1
 quiver_opts='None'
 plot_amplitude(maxval,mrec_cartesian, ax=ax[0,0], ind=14)
 plot_amplitude(maxval,model, ax=ax[0,1], ind=14)
@@ -608,7 +612,7 @@ reg_amplitude = regularization.Sparse(mesh, indActive=actv, mapping=wires.amplit
 reg_theta = regularization.Sparse(mesh, indActive=actv, mapping=wires.theta, alpha_z=1e-6)#, alpha_z=1e-8)
 reg_phi = regularization.Sparse(mesh, indActive=actv, mapping=wires.phi, alpha_z=1e-6)#, alpha_z=1e-8)
 
-norms = [[1, 0, 0, 0]]
+norms = [[0, 0, 0, 0]]
 reg_amplitude.norms = norms
 reg_theta.norms = norms
 reg_phi.norms = norms

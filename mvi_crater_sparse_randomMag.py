@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 # general python ecosystem
+
+# %%
 import numpy as np
 import scipy as sp
 from matplotlib import pyplot as plt
@@ -29,8 +31,8 @@ from SimPEG import (
 
 # In[3]: Flags for inflight sampling and large scale noise 
     
-inflight=0     # inflight sampling is 1; landed sampling is 0; 2 is mesh
-gauss_noise=0  # large wavelength noise on is 1.
+inflight=2     # inflight sampling is 1; landed sampling is 0; 2 is mesh
+gauss_noise=1  # large wavelength noise on is 1.
 use_topo=True 
      
     # %%
@@ -42,7 +44,8 @@ target_magnetization_direction = utils.mat_utils.dip_azimuth2cartesian(
     target_magnetization_inclination, target_magnetization_declination
 )
 
-target_magnetization_amplitude = 10 # magnetization in A/m
+target_magnetization_amplitude = 0 # magnetization in A/m
+background_magnetization = 10 # magnetization in A/m
 target_magnetization = target_magnetization_amplitude * target_magnetization_direction
 
 # In[4]: TOPO
@@ -133,7 +136,7 @@ mesh
 
 ind = utils.model_builder.getIndicesSphere([0,0,-40], 120, mesh.gridCC)
 
-magnetization = np.zeros((mesh.nC, 3))
+magnetization = np.ones((mesh.nC, 3))*background_magnetization
 magnetization[ind, :] = target_magnetization
 model = magnetization[actv, :]
 
