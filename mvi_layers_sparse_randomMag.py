@@ -31,7 +31,7 @@ from pymatsolver import Pardiso as Solver
 
 # %% Choices for different sampling scenarios 
 
-inflight=2  # inflight sampling is 1; landed sampling is 0; 2 is a grid
+inflight=0  # inflight sampling is 1; landed sampling is 0; 2 is a grid
 use_topo=False     # topography or not? 
 gauss_noise=0   # large wavelength noise on is 1.
 
@@ -345,7 +345,7 @@ synthetic_data = simulation.make_synthetic_data(
     utils.mkvc(model), 
     noise_floor=0.1, # standard deviation of the noise in nT 
     relative_error=0,  # percent noise 
-    add_noise=True  # do we add noise to the data we will use in the inversion?
+    add_noise=False  # do we add noise to the data we will use in the inversion?
 ) 
 
 # In[17]:
@@ -399,9 +399,9 @@ fn = 'Data_Profiles.png'
 
 wires = maps.Wires(("x", nC), ("y", nC), ("z", nC))
 
-reg_x = regularization.Sparse(mesh, indActive=actv, mapping=wires.x)#, alpha_s=1e-4, alpha_z=1e-8)
-reg_y = regularization.Sparse(mesh, indActive=actv, mapping=wires.y)#, alpha_s=1e-4, alpha_z=1e-8)
-reg_z = regularization.Sparse(mesh, indActive=actv, mapping=wires.z)#, alpha_s=1e-4, alpha_z=1e-8)
+reg_x = regularization.Sparse(mesh, indActive=actv, mapping=wires.x, alpha_z=100)#, alpha_s=1e-4, alpha_z=1e-8)
+reg_y = regularization.Sparse(mesh, indActive=actv, mapping=wires.y, alpha_z=100)#, alpha_s=1e-4, alpha_z=1e-8)
+reg_z = regularization.Sparse(mesh, indActive=actv, mapping=wires.z, alpha_z=100)#, alpha_s=1e-4, alpha_z=1e-8)
 
 norms = [[2, 2, 2, 2]]
 reg_x.norms = norms
@@ -447,7 +447,7 @@ fig, ax = plt.subplots(2, 2, figsize=(17, 10), gridspec_kw={'width_ratios': [2, 
 quiver_opts = {
     "scale":np.max(np.abs(mrec_cartesian))/20,
 }
-
+maxval = np.max(np.abs(mrec_cartesian))
 plot_vector_model(maxval,mrec_cartesian, ax=ax[0,0])
 plot_vector_model(maxval,mrec_cartesian, ax=ax[0,1], normal="Z", ind=zind)
 ax[0,0].set_title(f"y={mesh.vectorCCy[25]}")
@@ -562,9 +562,9 @@ spherical_map = maps.SphericalSystem(nP=nC*3)
 wires = maps.Wires(("amplitude", nC), ("theta", nC), ("phi", nC))
 
 # create the regularization
-reg_amplitude = regularization.Sparse(mesh, indActive=actv, mapping=wires.amplitude)#, alpha_s=1e-6)
-reg_theta = regularization.Sparse(mesh, indActive=actv, mapping=wires.theta)#, alpha_s=1e-6)
-reg_phi = regularization.Sparse(mesh, indActive=actv, mapping=wires.phi)#, alpha_s=1e-6)
+reg_amplitude = regularization.Sparse(mesh, indActive=actv, mapping=wires.amplitude)#,alpha_z=100)#, alpha_s=1e-6)
+reg_theta = regularization.Sparse(mesh, indActive=actv, mapping=wires.theta)#,alpha_z=100)#, alpha_s=1e-6)
+reg_phi = regularization.Sparse(mesh, indActive=actv, mapping=wires.phi)#,alpha_z=100)#, alpha_s=1e-6)
 
 norms = [[1, 0, 0, 0]]
 reg_amplitude.norms = norms
@@ -637,7 +637,7 @@ quiver_opts = {
 }
 
 m = spherical_map * mrec_spherical
-
+maxval = np.max(np.abs(m))
 plot_vector_model(maxval,m, ax=ax[0,0])
 plot_vector_model(maxval,m, ax=ax[0,1], normal="Z", ind=zind)
 ax[0,0].set_title(f"y={mesh.vectorCCy[30]}")
@@ -657,10 +657,6 @@ ax = plot_data_profile(synthetic_data.dobs, plot_opts={"marker":"o", "lw":0}, la
 ax = plot_data_profile(inv_prob_spherical.dpred, ax=ax, label=False)#"predicted")
 fn = 'sparse_inv_obs_pred.png'
 
-# %%
-
-
-#plt.savefig(pn+fn)
 
 # %%
 fig,ax = plt.subplots(3, 3, figsize=(15, 10))
