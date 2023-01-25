@@ -92,7 +92,7 @@ def run(plotIt=True):
         mesh,
         survey=survey,
         chiMap=idenMap,
-        ind_active=actv,
+        actInd=actv,
         store_sensitivities="forward_only",
     )
 
@@ -113,7 +113,7 @@ def run(plotIt=True):
 
     # Create the forward model operator
     prob = magnetics.Simulation3DIntegral(
-        mesh, survey=survey, chiMap=sumMap, ind_active=actv, store_sensitivities="ram"
+        mesh, survey=survey, chiMap=sumMap, actInd=actv, store_sensitivities="ram"
     )
 
     # Make depth weighting
@@ -149,15 +149,15 @@ def run(plotIt=True):
 
     reg_m1 = regularization.Sparse(regMesh, mapping=wires.homo)
     reg_m1.cell_weights = wires.homo * wr
-    reg_m1.norms = [0, 2]
+    reg_m1.norms = [[0, 2]]
     reg_m1.mref = np.zeros(sumMap.shape[1])
 
     # Regularization for the voxel model
     reg_m2 = regularization.Sparse(
-        mesh, active_cells=actv, mapping=wires.hetero, gradient_type="components"
+        mesh, indActive=actv, mapping=wires.hetero, gradientType="components"
     )
     reg_m2.cell_weights = wires.hetero * wr
-    reg_m2.norms = [0, 0, 0, 0]
+    reg_m2.norms = [[0, 0, 0, 0]]
     reg_m2.mref = np.zeros(sumMap.shape[1])
 
     reg = reg_m1 + reg_m2
