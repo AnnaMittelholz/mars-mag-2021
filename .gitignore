@@ -128,3 +128,4 @@ dmypy.json
 .pyre/
 /archive
 /__pycache__
+.DS_Store
