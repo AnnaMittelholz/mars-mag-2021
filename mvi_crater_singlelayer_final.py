@@ -426,7 +426,7 @@ active_cell_map_1l = maps.InjectActiveCells(mesh=mesh_1l, indActive=actv_1l, val
 # %%
 fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
 
-zind = 1
+zind = 0
 
 plot_vector_model(mesh_1l, nC_1l, active_cell_map_1l, maxval,model_1l, ax=ax[0], plot_grid=True)
 plot_vector_model(mesh_1l, nC_1l, active_cell_map_1l, maxval,model_1l, ax=ax[1], normal="Z", ind=zind)  # APPEND WITHOUT GRID,plot_grid=False

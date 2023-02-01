@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
+# %%Load packages
 import numpy as np
 import scipy.sparse as sps
 import scipy as sp
@@ -37,8 +35,6 @@ gauss_noise=0   # large wavelength noise on is 1.
 
 
 # %% Magnetization 
-
-
 target_magnetization_inclination = 45
 target_magnetization_declination = 90 
 
@@ -49,10 +45,7 @@ target_magnetization_direction = utils.mat_utils.dip_azimuth2cartesian(
 target_magnetization_amplitude = 10 # magnetization in A/m
 target_magnetization = target_magnetization_amplitude * target_magnetization_direction
 
-
 # survey set up 
-
-
 [xx, yy] = np.meshgrid(np.linspace(-600, 600, 50), np.linspace(-600, 600, 50))
 b = 100
 A = 50

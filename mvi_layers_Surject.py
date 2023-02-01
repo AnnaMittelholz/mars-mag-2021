@@ -30,7 +30,7 @@ from pymatsolver import Pardiso as Solver
 
 
 # %% Choices for different sampling scenarios 
-inflight=0  # inflight sampling is 1; landed sampling is 0; 2 is a grid
+inflight=2  # inflight sampling is 1; landed sampling is 0; 2 is a grid
 use_topo=False     # topography or not? 
 gauss_noise=0   # large wavelength noise on is 1.
 
@@ -102,7 +102,7 @@ plt.show()
 # %% set up mesh 
 from discretize import TensorMesh
 
-nc_z = 10#5  # number of core mesh cells in x, y and z
+nc_z = 10  # number of core mesh cells in x, y and z
 dz = 3   # base cell width in x, y and z
 npad_z = 10  # number of padding cells
 
@@ -110,7 +110,7 @@ nc = 30  # number of core mesh cells in x, y and z
 dh = 15   # base cell width in x, y and z
 npad = 10  # number of padding cells
 exp = 1 # expansion rate of padding cells
-exp_z = 1.4 # was 1.4
+exp_z = 1.4 # expansion rate of padding cells in z
 
 h = [(dh, npad, -exp), (dh, nc), (dh, npad, exp)]
 hz = [(dz, npad_z, -exp_z), (dz, nc_z), (dz, npad_z, exp_z)]
@@ -163,7 +163,7 @@ model = magnetization[actv, :]
 active_cell_map = maps.InjectActiveCells(mesh=mesh, indActive=actv, valInactive=np.nan)
 idenMap = maps.IdentityMap(nP=nC)
 
-# %%
+# %% define plotting functions
 
 def full_mesh_magnetization(model):
     return np.vstack([active_cell_map * model.reshape(nC, 3, order="F")[:, i] for i in range(3)]).T
@@ -304,7 +304,7 @@ synthetic_data = simulation.make_synthetic_data(
     relative_error=0,  # percent noise 
     add_noise=False  # do we add noise to the data we will use in the inversion?
 ) 
-# %%
+# %% Define plotting function
 
 survey_z_s = [1]
 def plot_data_profile(data, plot_opts=None, ax=None, xlim=None, ylim=None, label=True):
@@ -347,25 +347,23 @@ ax = plot_data_profile(synthetic_data.dobs, ax=ax, plot_opts={"marker":"o", "alp
 fn = 'Data_Profiles.png'
 
 # %% Create the different domains
-d2 = ind1[actv]
-d3 = ind3[actv]
 ind0= (~ind1) & (~ind3)
 d1 = ind0[actv]
+d2 = ind1[actv]
+d3 = ind3[actv]
 
 domains = [d1, d2, d3]
 mapping = maps.SurjectUnits(domains, nP=3) #for one component?!
 
-# magnetization[:, :] 
+#define magnetization for 3 domains corresponding to above
 m1 = -0.8*(target_magnetization)+1
-# magnetization[ind1, :] = target_magnetization
 m2 = target_magnetization
-# magnetization[ind3, :] = target_magnetization+4
 m3 = target_magnetization+4
-
 mags = [m1,m2,m3]
 
 # Create a wire map for a second model space, voxel based
 wires = maps.Wires(("homo", len(domains)), ("hetero", nC))
+
 # Create Sum map
 sumMap = maps.SumMap([mapping * wires.homo, wires.hetero])
 sumMap_all = sumMap + sumMap + sumMap # is this how I account for 3 components?
@@ -375,41 +373,36 @@ prob = mag.simulation.Simulation3DIntegral(
     mesh=mesh, survey=survey, chiMap=sumMap_all, actInd=actv,  model_type="vector", solver=Solver
 )
 
-# %%
+# %% Regularization surject
 regMesh = discretize.TensorMesh([len(domains)])
 
 reg_m1_x = regularization.Sparse(regMesh, mapping=wires.homo, alpha_z=100)
 reg_m1_y = regularization.Sparse(regMesh, mapping=wires.homo, alpha_z=100)
 reg_m1_z = regularization.Sparse(regMesh, mapping=wires.homo, alpha_z=100)
 
-norms = [[0, 2]]
+#norms = [[0, 2]]
+norms = [[2, 2, 2, 2]]
 reg_m1_x.norms = norms
 reg_m1_y.norms = norms
 reg_m1_z.norms = norms 
-reg_m1_x.mref = np.zeros(sumMap.shape[1])
-reg_m1_y.mref = np.zeros(sumMap.shape[1])
-reg_m1_x.mref = np.zeros(sumMap.shape[1])
+#reg_m1.mref = np.zeros(sumMap.shape[1])
 
 reg_m1 = reg_m1_x + reg_m1_y + reg_m1_z
 
 # %% create the regularization
 #wires = maps.Wires(("x", nC), ("y", nC), ("z", nC))
-
-reg_x = regularization.Sparse(mesh, indActive=actv, mapping=wires.hetero, alpha_z=100)#, alpha_s=1e-4, alpha_z=1e-8)
-reg_y = regularization.Sparse(mesh, indActive=actv, mapping=wires.hetero, alpha_z=100)#, alpha_s=1e-4, alpha_z=1e-8)
-reg_z = regularization.Sparse(mesh, indActive=actv, mapping=wires.hetero, alpha_z=100)#, alpha_s=1e-4, alpha_z=1e-8)
+reg_x = regularization.Sparse(mesh, indActive=actv, mapping=wires.hetero, alpha_z=100)
+reg_y = regularization.Sparse(mesh, indActive=actv, mapping=wires.hetero, alpha_z=100)
+reg_z = regularization.Sparse(mesh, indActive=actv, mapping=wires.hetero, alpha_z=100)
 
 norms = [[2, 2, 2, 2]]
 reg_x.norms = norms
 reg_y.norms = norms
 reg_z.norms = norms
 
+
 reg_original = reg_x + reg_y + reg_z
-
-# %%
-
 reg = reg_m1 + reg_original
-
 
 # %% 
 

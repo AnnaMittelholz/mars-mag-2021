@@ -543,7 +543,7 @@ reg_amplitude = regularization.Sparse(mesh, indActive=actv, mapping=wires.amplit
 reg_theta = regularization.Sparse(mesh, indActive=actv, mapping=wires.theta)#, alpha_s=1e-6)
 reg_phi = regularization.Sparse(mesh, indActive=actv, mapping=wires.phi)#, alpha_s=1e-6)
 
-norms = [[1, 0, 0, 0]]
+norms = [[1, 0, 0, 0]] 
 reg_amplitude.norms = norms
 reg_theta.norms = norms
 reg_phi.norms = norms
