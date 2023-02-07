@@ -7,6 +7,7 @@ import numpy as np
 import scipy as sp
 from matplotlib import pyplot as plt
 from matplotlib.colors import Normalize
+from matplotlib.patches import Wedge
 import ipywidgets
 import random
 import math
@@ -29,8 +30,8 @@ from SimPEG import (
 )
 import os
 # %% Load in model iterations
-inflight=0     # inflight sampling is 1; landed sampling is 0; 2 is mesh
-Itype = 'L2'
+inflight=1     # inflight sampling is 1; landed sampling is 0; 2 is mesh
+Itype = 'sparse'
 
 if inflight == 1:
     path = './model_iterations/Crater_'+Itype+'/flight/'
@@ -137,7 +138,7 @@ def full_mesh_magnetization(model,nC,active_cell_map):
 
 
 def plot_vector_model(
-    mesh, nC, active_cell_map, maxval, model, ax=None, quiver_opts=None, normal="Y", xlim=None, ylim=None, ind=None, plot_data=True, plot_grid=False
+    mesh, nC, active_cell_map, maxval, model, ax=None, quiver_opts=None, normal="Y", xlim=None, ylim=None, ind=None, plot_data=True, plot_grid=False, outline=True
 ):
     if ax is None: 
         fig, ax = plt.subplots(1, 1, figsize=(10, 4))
@@ -162,28 +163,40 @@ def plot_vector_model(
     
     cb.set_label("amplitude magnetization (A/m)", fontsize=14)
 
+    if outline is True:
+        theta1, theta2 = 0, 0 + 180
+        radius = 120
+        center = (0, -40)
+        w2 = Wedge(center, radius, theta2, theta1, fill=False, edgecolor='black',linestyle="dashed",linewidth=2)
+        circle = plt.Circle((0, 0), 120, color='black', linestyle="dashed", linewidth=2,fill=False) 
+
     if normal.upper() == "X": 
         if plot_data is True: 
             ax.plot(survey_xyz[:, 1], survey_xyz[:, 2], "C1o", ms=4,label=False)
+        if outline is True:
+            ax.add_artist(w2)
         ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
         ax.set_title(f"x at {mesh.vectorCCy[ind]} m", fontsize=14)
     elif normal.upper() == "Y": 
         if plot_data is True: 
             ax.plot(survey_xyz[:, 0], survey_xyz[:, 2], "C1o", ms=4,label=False)
+        if outline is True:
+            ax.add_artist(w2)
         ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
         ax.set_title(f"y at {mesh.vectorCCy[ind]} m", fontsize=14)
         ax.set_title("y at 0 m", fontsize=14)
     elif normal.upper() == "Z": 
         if plot_data is True: 
             ax.plot(survey_xyz[:, 0], survey_xyz[:, 1], "C1o", ms=4,label=False)
+        if outline is True:
+            ax.add_artist(circle)
         ax.set_xlim([survey_x.min()*1.25, survey_x.max()*1.25] if xlim is None else xlim)
         ax.set_ylim([survey_x.min()*1.25, survey_x.max()*1.25] if ylim is None else ylim)
         ax.set_title(f"z at {mesh.vectorCCy[ind]} m", fontsize=14)
     ax.set_aspect(1)
     
-    
 def plot_amplitude(
-        mesh, nC, active_cell_map, maxval, model, ax=None, quiver_opts=None, normal="Y", xlim=None, ylim=None, ind=None, plot_data=True, plot_grid=False
+        mesh, nC, active_cell_map, maxval, model, ax=None, quiver_opts=None, normal="Y", xlim=None, ylim=None, ind=None, plot_data=True, plot_grid=False, outline=True
     ):
         if ax is None: 
             fig, ax = plt.subplots(1, 1, figsize=(10, 4))
@@ -209,20 +222,34 @@ def plot_amplitude(
             )
         
         cb.set_label("amplitude magnetization [A/m]", fontsize=14)
+        
+        if outline is True:
+            theta1, theta2 = 0, 0 + 180
+            radius = 120
+            center = (0, -40)
+            w2 = Wedge(center, radius, theta2, theta1, fill=False, edgecolor='black',linestyle="dashed",linewidth=2)
+            circle = plt.Circle((0, 0), 120, color='black', linestyle="dashed", linewidth=2,fill=False) 
 
         if normal.upper() == "X": 
             if plot_data is True: 
                 ax.plot(survey_xyz[:, 1], survey_xyz[:, 2], "C1o", ms=4,label=False)
+            if outline is True:
+                ax.add_artist(w2)
             ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
             ax.set_title(f"x at {mesh.vectorCCy[ind]} m", fontsize=14)
         elif normal.upper() == "Y": 
             if plot_data is True: 
-                ax.plot(survey_xyz[:, 0], survey_xyz[:, 2], "C1o", ms=4)
+                ax.plot(survey_xyz[:, 0], survey_xyz[:, 2], "C1o", ms=4,label=False)
+            if outline is True:
+                ax.add_artist(w2)
             ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
+            ax.set_title(f"y at {mesh.vectorCCy[ind]} m", fontsize=14)
             ax.set_title("y at 0 m", fontsize=14)
         elif normal.upper() == "Z": 
             if plot_data is True: 
-                ax.plot(survey_xyz[:, 0], survey_xyz[:, 1], "C1o", ms=4)
+                ax.plot(survey_xyz[:, 0], survey_xyz[:, 1], "C1o", ms=4,label=False)
+            if outline is True:
+                ax.add_artist(circle)
             ax.set_xlim([survey_x.min()*1.25, survey_x.max()*1.25] if xlim is None else xlim)
             ax.set_ylim([survey_x.min()*1.25, survey_x.max()*1.25] if ylim is None else ylim)
             ax.set_title(f"z at {mesh.vectorCCy[ind]} m", fontsize=14)
@@ -236,7 +263,7 @@ zind = 25
 spherical_map = maps.SphericalSystem(nP=nC*3)
 
 for file in os.listdir(path):
-    model = np.load(path+file)
+    model = np.load(path+file,allow_pickle=True)
 
     fig, ax = plt.subplots(2, 2, figsize=(18, 10), gridspec_kw={'width_ratios': [2, 1]})
 
@@ -254,6 +281,7 @@ for file in os.listdir(path):
     plot_vector_model(mesh, nC, active_cell_map,maxval,m, ax=ax[0,1], normal="Z", ind=zind)
     plt.tight_layout()
 
+    maxval=target_magnetization_amplitude
     quiver_opts = 'None'
     plot_amplitude(mesh, nC, active_cell_map,maxval,m, ax=ax[1,0])
     plot_amplitude(mesh, nC, active_cell_map,maxval,m, ax=ax[1,1], normal="Z", ind=zind)
@@ -261,6 +289,15 @@ for file in os.listdir(path):
 
     #save figure and save with name of data file    
     plt.savefig(path+"/"+file[:-4]+".png")
+    plt.close()
+
+    maxval=target_magnetization_amplitude
+    fig, ax = plt.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [2, 1]})
+    quiver_opts = 'None'
+    plot_amplitude(mesh, nC, active_cell_map,maxval,m, ax=ax[0])
+    plot_amplitude(mesh, nC, active_cell_map,maxval,m, ax=ax[1], normal="Z", ind=zind)
+    plt.tight_layout()
+    plt.savefig(path+"/"+file[:-4]+"_tot.png",bbox_inches='tight')
     plt.close()
    
 
