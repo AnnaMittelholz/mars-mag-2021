@@ -596,7 +596,7 @@ opt = optimization.ProjectedGNCG(
 )
 
 # inverse problem
-inv_prob = inverse_problem.BaseInvProblem(dmis, reg, opt, beta=1)  #LH had beta = 0
+inv_prob = inverse_problem.BaseInvProblem(dmis, reg, opt, beta=0)  
 
 # directives 
 target = directives.TargetMisfit(chifact=1)  # target misfit LH 0

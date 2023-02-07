@@ -129,3 +129,4 @@ dmypy.json
 /archive
 /__pycache__
 .DS_Store
+./model_iterations

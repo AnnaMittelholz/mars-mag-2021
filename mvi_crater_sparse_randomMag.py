@@ -32,7 +32,7 @@ from SimPEG import (
 # In[3]: Flags for inflight sampling and large scale noise 
     
 inflight=2     # inflight sampling is 1; landed sampling is 0; 2 is mesh
-gauss_noise=1  # large wavelength noise on is 1.
+gauss_noise=0  # large wavelength noise on is 1.
 use_topo=True 
      
     # %%
@@ -44,8 +44,8 @@ target_magnetization_direction = utils.mat_utils.dip_azimuth2cartesian(
     target_magnetization_inclination, target_magnetization_declination
 )
 
-target_magnetization_amplitude = 0 # magnetization in A/m
-background_magnetization = 10 # magnetization in A/m
+target_magnetization_amplitude = 10 # magnetization in A/m
+background_magnetization = 0 # magnetization in A/m
 target_magnetization = target_magnetization_amplitude * target_magnetization_direction
 
 # In[4]: TOPO
@@ -256,7 +256,7 @@ def plot_amplitude(
         ax.set_aspect(1)
     
 # %%  Plot Model
-maxval=5
+maxval=np.max(np.abs(model))
 
 if gauss_noise > 0: 
     
@@ -363,6 +363,9 @@ ax=plot_data_profile(synthetic_data.dobs, ax=ax, plot_opts={"marker":"o", "alpha
  
 fn = 'Data_Profiles.png'
 
+
+
+
 # %%
 fig, ax = plt.subplots(1, 4, figsize=(20, 5), gridspec_kw={'width_ratios': [1,1,1, 1]})
 
@@ -391,8 +394,6 @@ cbar = fig.colorbar(sc)
 
 
 fn = 'Data_Profiles.png'
-
-# %% NOW KEEP GEOMETRY
 
 
 # %%

@@ -353,61 +353,48 @@ d2 = ind1[actv]
 d3 = ind3[actv]
 
 domains = [d1, d2, d3]
-mapping = maps.SurjectUnits(domains, nP=3) #for one component?!
+mapping = maps.SurjectUnits(domains, nP=3) 
 
 #define magnetization for 3 domains corresponding to above
 m1 = -0.8*(target_magnetization)+1
 m2 = target_magnetization
 m3 = target_magnetization+4
-mags = [m1,m2,m3]
+mags = np.array([m1,m2,m3])
+mags = mags.reshape(3,3)
 
-# Create a wire map for a second model space, voxel based
-wires = maps.Wires(("homo", len(domains)), ("hetero", nC))
+# provide active cell map * surjunits
+mapped = mapping.P * mags
+model_map = maps.IdentityMap(nP=mapping.nP)
 
-# Create Sum map
-sumMap = maps.SumMap([mapping * wires.homo, wires.hetero])
-sumMap_all = sumMap + sumMap + sumMap # is this how I account for 3 components?
+# %% plot mapped to check it looks right and yippe it does :)     
+fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
+zind = 14
+maxval=np.max(magnetization)
+plot_vector_model(maxval,mapped, ax=ax[0],plot_data=False,plot_grid=True )
+plot_vector_model(maxval,mapped, ax=ax[1], normal="Z", ind=zind,plot_data=False,plot_grid=True)  # APPEND WITHOUT GRID,plot_grid=False
 
-# Create the forward model operator
+plt.tight_layout()
+
+# %% # Create the forward model operator
 prob = mag.simulation.Simulation3DIntegral(
-    mesh=mesh, survey=survey, chiMap=sumMap_all, actInd=actv,  model_type="vector", solver=Solver
+    mesh=mesh, survey=survey, chiMap=model_map, actInd=actv,  model_type="vector", solver=Solver
 )
 
 # %% Regularization surject
 regMesh = discretize.TensorMesh([len(domains)])
+wires = maps.Wires(("x", nC), ("y", nC), ("z", nC))
 
-reg_m1_x = regularization.Sparse(regMesh, mapping=wires.homo, alpha_z=100)
-reg_m1_y = regularization.Sparse(regMesh, mapping=wires.homo, alpha_z=100)
-reg_m1_z = regularization.Sparse(regMesh, mapping=wires.homo, alpha_z=100)
-
-#norms = [[0, 2]]
+reg_m1_x = regularization.Sparse(regMesh, mapping=wires.x)
+reg_m1_y = regularization.Sparse(regMesh, mapping=wires.y)
+reg_m1_z = regularization.Sparse(regMesh, mapping=wires.z)
 norms = [[2, 2, 2, 2]]
 reg_m1_x.norms = norms
 reg_m1_y.norms = norms
-reg_m1_z.norms = norms 
-#reg_m1.mref = np.zeros(sumMap.shape[1])
+reg_m1_z.norms = norms
 
-reg_m1 = reg_m1_x + reg_m1_y + reg_m1_z
-
-# %% create the regularization
-#wires = maps.Wires(("x", nC), ("y", nC), ("z", nC))
-reg_x = regularization.Sparse(mesh, indActive=actv, mapping=wires.hetero, alpha_z=100)
-reg_y = regularization.Sparse(mesh, indActive=actv, mapping=wires.hetero, alpha_z=100)
-reg_z = regularization.Sparse(mesh, indActive=actv, mapping=wires.hetero, alpha_z=100)
-
-norms = [[2, 2, 2, 2]]
-reg_x.norms = norms
-reg_y.norms = norms
-reg_z.norms = norms
-
-
-reg_original = reg_x + reg_y + reg_z
-reg = reg_m1 + reg_original
+reg = reg_m1_x + reg_m1_y + reg_m1_z
 
 # %% 
-
-# simulation2.G dimensions mismatch 
-#dmis = data_misfit.L2DataMisfit(data=synthetic_data, simulation=simulation)
 dmis = data_misfit.L2DataMisfit(data=synthetic_data, simulation=prob)
 
 # optimization
@@ -416,25 +403,21 @@ opt = optimization.InexactGaussNewton(
 )
 
 # inverse problem
-inv_prob = inverse_problem.BaseInvProblem(dmis, reg, opt)
+inv_prob = inverse_problem.BaseInvProblem(dmis, reg, opt, beta=0)
 
 # directives 
-betaest = directives.BetaEstimate_ByEig(beta0_ratio=4)  # estimate initial trade-off parameter
 sensitivity_weights = directives.UpdateSensitivityWeights()  # Add sensitivity weights
 IRLS = directives.Update_IRLS()  # IRLS
 update_Jacobi = directives.UpdatePreconditioner()  # Pre-conditioner
 target = directives.TargetMisfit(chifact=1)  # target misfit 
 
-
 inv = inversion.BaseInversion(
-    inv_prob, directiveList=[sensitivity_weights, IRLS, update_Jacobi, betaest, target]
+    inv_prob, directiveList=[sensitivity_weights, IRLS, update_Jacobi, target]
 )
 
-
 # %% Perform inversion 
-
-m0 = np.zeros(nC * 3)
-mrec_cartesian = inv.run(m0)
+m0 = np.zeros(mapped.shape[0]*3)
+m_surject = inv.run(m0)
 
 # %% and plot L2 inversion 
 zind = 5   
@@ -442,16 +425,16 @@ zind = 5
 fig, ax = plt.subplots(2, 2, figsize=(17, 10), gridspec_kw={'width_ratios': [2, 1]})
 
 quiver_opts = {
-    "scale":np.max(np.abs(mrec_cartesian))/20,
+    "scale":np.max(np.abs(m_surject))/20,
 }
-maxval = np.max(np.abs(mrec_cartesian))
-plot_vector_model(maxval,mrec_cartesian, ax=ax[0,0])
-plot_vector_model(maxval,mrec_cartesian, ax=ax[0,1], normal="Z", ind=zind)
+maxval = np.max(np.abs(m_surject))
+plot_vector_model(maxval,m_surject, ax=ax[0,0])
+plot_vector_model(maxval,m_surject, ax=ax[0,1], normal="Z", ind=zind)
 ax[0,0].set_title(f"y={mesh.vectorCCy[25]}")
 ax[0,1].set_title(f"z={mesh.vectorCCz[5]}")
 quiver_opts='None'
-plot_amplitude(maxval,mrec_cartesian, ax=ax[1,0])
-plot_amplitude(maxval,mrec_cartesian, ax=ax[1,1], normal="Z", ind=zind)
+plot_amplitude(maxval,m_surject, ax=ax[1,0])
+plot_amplitude(maxval,m_surject, ax=ax[1,1], normal="Z", ind=zind)
 ax[1,0].set_title(f"")
 ax[1,1].set_title(f"")
 plt.tight_layout()
@@ -462,18 +445,18 @@ fig,ax = plt.subplots(3,3,figsize=(15, 10))
 
 
 quiver_opts = {
-    "scale":np.max(np.abs(mrec_cartesian))/20,
+    "scale":np.max(np.abs(m_surject))/20,
 }
 
-plot_vector_model(maxval,mrec_cartesian, ax=ax[0,0], ind=30)
-plot_vector_model(maxval,mrec_cartesian, ax=ax[0,1], normal="Z", ind=14)
-plot_vector_model(maxval,mrec_cartesian, ax=ax[0,2], normal="Z", ind=12)
-plot_vector_model(maxval,mrec_cartesian, ax=ax[1,0], normal="Z", ind=10)
-plot_vector_model(maxval,mrec_cartesian, ax=ax[1,1], normal="Z", ind=8)
-plot_vector_model(maxval,mrec_cartesian, ax=ax[1,2], normal="Z", ind=6)
-plot_vector_model(maxval,mrec_cartesian, ax=ax[2,0], normal="Z", ind=4)
-plot_vector_model(maxval,mrec_cartesian, ax=ax[2,1], normal="Z", ind=2)
-plot_vector_model(maxval,mrec_cartesian, ax=ax[2,2], normal="Z", ind=1)
+plot_vector_model(maxval,m_surject, ax=ax[0,0], ind=30)
+plot_vector_model(maxval,m_surject, ax=ax[0,1], normal="Z", ind=14)
+plot_vector_model(maxval,m_surject, ax=ax[0,2], normal="Z", ind=12)
+plot_vector_model(maxval,m_surject, ax=ax[1,0], normal="Z", ind=10)
+plot_vector_model(maxval,m_surject, ax=ax[1,1], normal="Z", ind=8)
+plot_vector_model(maxval,m_surject, ax=ax[1,2], normal="Z", ind=6)
+plot_vector_model(maxval,m_surject, ax=ax[2,0], normal="Z", ind=4)
+plot_vector_model(maxval,m_surject, ax=ax[2,1], normal="Z", ind=2)
+plot_vector_model(maxval,m_surject, ax=ax[2,2], normal="Z", ind=1)
 
 ax[0,0].set_title(f"Fwd Model at y={mesh.vectorCCz[10]}")
 ax[0,1].set_title(f"z={mesh.vectorCCz[14]}")
@@ -490,17 +473,17 @@ ax[2,2].set_title(f"z={mesh.vectorCCz[1]}")
 fig,ax = plt.subplots(3,4,figsize=(15, 10))
 
 quiver_opts='None'
-plot_amplitude(maxval,mrec_cartesian, ax=ax[0,0], ind=14)
+plot_amplitude(maxval,m_surject, ax=ax[0,0], ind=14)
 plot_amplitude(maxval,model, ax=ax[0,1], ind=14)
-plot_amplitude(maxval,mrec_cartesian, ax=ax[0,2], normal="Z", ind=13)
+plot_amplitude(maxval,m_surject, ax=ax[0,2], normal="Z", ind=13)
 plot_amplitude(maxval,model, ax=ax[0,3], normal="Z", ind=13) 
-plot_amplitude(maxval,mrec_cartesian, ax=ax[1,0], normal="Z", ind=12)
+plot_amplitude(maxval,m_surject, ax=ax[1,0], normal="Z", ind=12)
 plot_amplitude(maxval,model, ax=ax[1,1], normal="Z", ind=12) 
-plot_amplitude(maxval,mrec_cartesian, ax=ax[1,2], normal="Z", ind=10)
+plot_amplitude(maxval,m_surject, ax=ax[1,2], normal="Z", ind=10)
 plot_amplitude(maxval,model, ax=ax[1,3], normal="Z", ind=10) 
-plot_amplitude(maxval,mrec_cartesian, ax=ax[2,0], normal="Z", ind=8)
+plot_amplitude(maxval,m_surject, ax=ax[2,0], normal="Z", ind=8)
 plot_amplitude(maxval,model, ax=ax[2,1], normal="Z", ind=8) 
-plot_amplitude(maxval,mrec_cartesian, ax=ax[2,2], normal="Z", ind=6)
+plot_amplitude(maxval,m_surject, ax=ax[2,2], normal="Z", ind=6)
 plot_amplitude(maxval,model, ax=ax[2,3], normal="Z", ind=6) 
 
 ax[0,0].set_title(f"y={mesh.vectorCCy[14]}")
@@ -551,188 +534,3 @@ cbar = fig.colorbar(sc)
 
 
 fn = 'Data_Profiles.png'
-
-# %%  SPARSE inversion in spherical coordinates
-
-## inversion in spherical coordinates
-spherical_map = maps.SphericalSystem(nP=nC*3)
-wires = maps.Wires(("amplitude", nC), ("theta", nC), ("phi", nC))
-
-# create the regularization
-reg_amplitude = regularization.Sparse(mesh, indActive=actv, mapping=wires.amplitude)#,alpha_z=100)#, alpha_s=1e-6)
-reg_theta = regularization.Sparse(mesh, indActive=actv, mapping=wires.theta)#,alpha_z=100)#, alpha_s=1e-6)
-reg_phi = regularization.Sparse(mesh, indActive=actv, mapping=wires.phi)#,alpha_z=100)#, alpha_s=1e-6)
-
-norms = [[1, 0, 0, 0]]
-reg_amplitude.norms = norms
-reg_theta.norms = norms
-reg_phi.norms = norms
-
-# set reference model to zero
-reg_amplitude.mref = np.zeros(nC*3)
-reg_theta.mref = np.zeros(nC*3)
-reg_phi.mref = np.zeros(nC*3)
-
-reg_amplitude.objfcts = reg_x.objfcts[:-1]
-reg_theta.objfcts = reg_y.objfcts[:-1]
-reg_phi.objfcts = reg_z.objfcts[:-1]
-
-# don't impose reference angles
-reg_theta.alpha_s = 0. 
-reg_phi.alpha_s = 0.
-
-reg_spherical = reg_amplitude + reg_theta + reg_phi
-
-# In[62]:
-
-
-simulation_spherical = mag.simulation.Simulation3DIntegral(
-    mesh=mesh, survey=survey, chiMap=spherical_map, 
-    actInd=actv, model_type="vector"
-)
-
-dmis_spherical = data_misfit.L2DataMisfit(simulation=simulation_spherical, data=synthetic_data)
-
-
-# In[63]:
-
-opt_spherical = optimization.InexactGaussNewton(
-    maxIter=20, maxIterCG=20, tolCG=1e-4
-)
-
-# In[64]:
-
-inv_prob_spherical = inverse_problem.BaseInvProblem(
-    dmis_spherical, reg_spherical, opt_spherical, beta=inv_prob.beta
-)
-
-# In[65]:
-
-spherical_projection = directives.ProjectSphericalBounds()  
-sensitivity_weights = directives.UpdateSensitivityWeights()
-IRLS = directives.Update_IRLS(
-    sphericalDomain=True, beta_tol=0.1
-)
-update_Jacobi = directives.UpdatePreconditioner()
-
-
-inv_spherical = inversion.BaseInversion(
-    inv_prob_spherical, directiveList=[
-        spherical_projection, sensitivity_weights, IRLS, update_Jacobi
-    ]
-)
-
-mstart = utils.cartesian2spherical(mrec_cartesian.reshape((nC, 3), order="F"))
-mrec_spherical = inv_spherical.run(mstart)
-
- # %%
-zind = 5
-fig, ax = plt.subplots(2, 2, figsize=(18, 10), gridspec_kw={'width_ratios': [2, 1]})
-
-quiver_opts = {
-    "scale":np.max(np.abs(mrec_spherical))/20,
-}
-
-m = spherical_map * mrec_spherical
-maxval = np.max(np.abs(m))
-plot_vector_model(maxval,m, ax=ax[0,0])
-plot_vector_model(maxval,m, ax=ax[0,1], normal="Z", ind=zind)
-ax[0,0].set_title(f"y={mesh.vectorCCy[30]}")
-ax[0,1].set_title(f"z={mesh.vectorCCz[5]}")
-
-quiver_opts = 'None'
-plot_amplitude(maxval,m, ax=ax[1,0])
-plot_amplitude(maxval,m, ax=ax[1,1], normal="Z", ind=zind)
-ax[1,0].set_title(f"")
-ax[1,1].set_title(f"")
-
-plt.tight_layout()
-fn = 'sparse_invmodel.png'
-
-# In[69]:
-ax = plot_data_profile(synthetic_data.dobs, plot_opts={"marker":"o", "lw":0}, label=False)
-ax = plot_data_profile(inv_prob_spherical.dpred, ax=ax, label=False)#"predicted")
-fn = 'sparse_inv_obs_pred.png'
-
-
-# %%
-fig,ax = plt.subplots(3, 3, figsize=(15, 10))
-
-m = spherical_map * mrec_spherical
-
-quiver_opts = {
-    "scale":np.max(np.abs(mrec_spherical))/20,
-}
-#plot_vector_model(maxval,model, ax=ax[0,0], normal="Z", ind=10) 
-plot_vector_model(maxval,mrec_spherical, ax=ax[0,0], ind=10)
-#plot_vector_model(maxval,model, ax=ax[0,0],plot_data=True,plot_grid=True )
-plot_vector_model(maxval,m, ax=ax[0,1], normal="Z", ind=14)
-plot_vector_model(maxval,m, ax=ax[0,2], normal="Z", ind=12)
-plot_vector_model(maxval,m, ax=ax[1,0], normal="Z", ind=10)
-plot_vector_model(maxval,m, ax=ax[1,1], normal="Z", ind=8)
-plot_vector_model(maxval,m, ax=ax[1,2], normal="Z", ind=6)
-plot_vector_model(maxval,m, ax=ax[2,0], normal="Z", ind=4)
-plot_vector_model(maxval,m, ax=ax[2,1], normal="Z", ind=2)
-plot_vector_model(maxval,m, ax=ax[2,2], normal="Z", ind=1)
-
-
-# %%
-
-fig,ax = plt.subplots(3,3,figsize=(15, 10))
-
-quiver_opts = {
-    "scale":np.max(np.abs(m))/20,
-}
-
-plot_vector_model(maxval,m, ax=ax[0,0], ind=30)
-plot_vector_model(maxval,m, ax=ax[0,1], normal="Z", ind=14)
-plot_vector_model(maxval,m, ax=ax[0,2], normal="Z", ind=13)
-plot_vector_model(maxval,m, ax=ax[1,0], normal="Z", ind=12)
-plot_vector_model(maxval,m, ax=ax[1,1], normal="Z", ind=11)
-plot_vector_model(maxval,m, ax=ax[1,2], normal="Z", ind=10)
-plot_vector_model(maxval,m, ax=ax[2,0], normal="Z", ind=8)
-plot_vector_model(maxval,m, ax=ax[2,1], normal="Z", ind=6)
-plot_vector_model(maxval,m, ax=ax[2,2], normal="Z", ind=4)
-
-
-ax[0,0].set_title(f"Fwd Model at y={mesh.vectorCCz[10]}")
-ax[0,1].set_title(f"z={mesh.vectorCCz[14]}")
-ax[0,2].set_title(f"z={mesh.vectorCCz[13]}")
-ax[1,0].set_title(f"z={mesh.vectorCCz[12]}")
-ax[1,1].set_title(f"z={mesh.vectorCCz[11]}")
-ax[1,2].set_title(f"z={mesh.vectorCCz[10]}")
-ax[2,0].set_title(f"z={mesh.vectorCCz[8]}")
-ax[2,1].set_title(f"z={mesh.vectorCCz[6]}")
-ax[2,2].set_title(f"z={mesh.vectorCCz[4]}")
-
-
-# %%
-fig,ax = plt.subplots(3,4,figsize=(15, 10))
-
-quiver_opts='None'
-plot_amplitude(maxval,m, ax=ax[0,0], ind=14)
-plot_amplitude(maxval,model, ax=ax[0,1], ind=14)
-plot_amplitude(maxval,m, ax=ax[0,2], normal="Z", ind=13)
-plot_amplitude(maxval,model, ax=ax[0,3], normal="Z", ind=13) 
-plot_amplitude(maxval,m, ax=ax[1,0], normal="Z", ind=12)
-plot_amplitude(maxval,model, ax=ax[1,1], normal="Z", ind=12) 
-plot_amplitude(maxval,m, ax=ax[1,2], normal="Z", ind=10)
-plot_amplitude(maxval,model, ax=ax[1,3], normal="Z", ind=10) 
-plot_amplitude(maxval,m, ax=ax[2,0], normal="Z", ind=8)
-plot_amplitude(maxval,model, ax=ax[2,1], normal="Z", ind=8) 
-plot_amplitude(maxval,m, ax=ax[2,2], normal="Z", ind=5)
-plot_amplitude(maxval,model, ax=ax[2,3], normal="Z", ind=5) 
-
-ax[0,0].set_title(f"y={mesh.vectorCCy[14]}")
-ax[0,1].set_title(f"z={mesh.vectorCCz[14]}")
-ax[0,2].set_title(f"z={mesh.vectorCCz[13]}")
-ax[0,3].set_title(f"z={mesh.vectorCCz[13]}")
-ax[1,0].set_title(f"z={mesh.vectorCCz[12]}")
-ax[1,1].set_title(f"z={mesh.vectorCCz[12]}")
-ax[1,2].set_title(f"z={mesh.vectorCCz[10]}")
-ax[1,3].set_title(f"z={mesh.vectorCCz[10]}")
-ax[2,0].set_title(f"z={mesh.vectorCCz[8]}")
-ax[2,1].set_title(f"z={mesh.vectorCCz[8]}")
-ax[2,2].set_title(f"z={mesh.vectorCCz[5]}")
-ax[2,3].set_title(f"z={mesh.vectorCCz[5]}")
-
