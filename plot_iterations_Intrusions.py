@@ -3,14 +3,17 @@
 # general python ecosystem
 
 # %%
+# general python ecosystem
 import numpy as np
 import scipy as sp
+import scipy.sparse as sps
 from matplotlib import pyplot as plt
 from matplotlib.colors import Normalize
-from matplotlib.patches import Wedge
+from matplotlib.patches import Wedge, Rectangle
 import ipywidgets
 import random
 import math
+from matplotlib import patches
 
 # SimPEG tools 
 import discretize
@@ -28,26 +31,28 @@ from SimPEG import (
     regularization,
     utils
 )
+
+from pymatsolver import Pardiso as Solver
 import os
 # %% Load in model iterations
-inflight=2    # inflight sampling is 1; landed sampling is 0; 2 is mesh
+inflight=1    # inflight sampling is 1; landed sampling is 0; 2 is mesh
 Itype = 'sparse'
 
 if inflight == 1:
-    path = './model_iterations/Crater_'+Itype+'/flight/'
+    path = './model_iterations/Intrusion_'+Itype+'/flight/'
 elif inflight==0:
-    path = './model_iterations/Crater_'+Itype+'/landed/'
+    path = './model_iterations/Intrusion_'+Itype+'/landed/'
 elif inflight==2:
-    path = './model_iterations/Crater_'+Itype+'/mesh/'
+    path = './model_iterations/Intrusion_'+Itype+'/mesh/'
 
 
 # %% Set up the code
  
 
-use_topo=True 
+use_topo=False 
 
 # define MAG
-target_magnetization_inclination = 45
+target_magnetization_inclination = 0
 target_magnetization_declination = 90 
 
 target_magnetization_direction = utils.mat_utils.dip_azimuth2cartesian(
@@ -72,11 +77,11 @@ topo = np.c_[mkvc(xx), mkvc(yy), mkvc(zz)]
 
 # %%
 if inflight ==1:  #inflight measuremenets 
-    line_length = 600
+    line_length = 200
     n_data_along_line = 30
     survey_x = np.linspace(-line_length/2, line_length/2, n_data_along_line)
-    survey_y = np.r_[-50,0, 50] 
-    survey_z = np.r_[10]
+    survey_y = np.r_[-3,0, 3] 
+    survey_z = np.r_[5]
     survey_xyz = discretize.utils.ndgrid([survey_x, survey_y, survey_z])
     
     xx = np.linspace(0, 7, n_data_along_line)
@@ -88,32 +93,40 @@ if inflight ==1:  #inflight measuremenets
     survey_xyz[:,2] = zz
 
 elif inflight == 2: # grid
-    line_length = 600
-    n_data_along_line = 15
+    line_length = 200
+    n_data_along_line = 12
     survey_x = np.linspace(-line_length/2, line_length/2, n_data_along_line)
     survey_y = survey_x
-    survey_z = np.r_[10]
+    survey_z = np.r_[5]
     survey_xyz = discretize.utils.ndgrid([survey_x, survey_y, survey_z])
 
 else:
-    line_length = 600
+    line_length = 200
     n_data_along_line = 6
     survey_x = np.linspace(-line_length/2, line_length/2, n_data_along_line)
-    survey_y = np.r_[0] 
+    survey_x = np.r_[-100, -50,-10,0,10,20,30,50,100] 
+    
+    survey_y = np.r_[5] 
     survey_z = np.r_[1]
     survey_xyz = discretize.utils.ndgrid([survey_x, survey_y, survey_z])
-
 
     # %%
 from discretize import TensorMesh
 
+
+nc_z = 10#5  # number of core mesh cells in x, y and z
+dz = 3   # base cell width in x, y and z
+npad_z = 10  # number of padding cells
+
 nc = 40  # number of core mesh cells in x, y and z
-dh = 20   # base cell width in x, y and z
+dh = 5   # base cell width in x, y and z
 npad = 10  # number of padding cells
-exp = 1  # expansion rate of padding cells
+exp = 1 # expansion rate of padding cells
+exp_z = 1.4 # was 1.4
 
 h = [(dh, npad, -exp), (dh, nc), (dh, npad, exp)]
-mesh = TensorMesh([h, h, h], x0="CCC")
+hz = [(dz, npad_z, -exp_z), (dz, nc_z), (dz, npad_z, exp_z)]
+mesh = TensorMesh([h, h, hz], x0="CCC")
 
 # Define an active cells from topo
 actv = utils.surface2ind_topo(mesh, topo)
@@ -123,12 +136,15 @@ model_map = maps.IdentityMap(nP=nC)  # model is a vlue for each active cell
 mesh
 
 # %%
-ind = utils.model_builder.getIndicesSphere([0,0,-40], 120, mesh.gridCC)
+xp = np.kron(np.ones((2)), [0, 15.0, 15.0, 00.0])
+yp = np.kron([-10.0, 10.0], np.ones((4)))
+zp = np.kron(np.ones((2)), [-600.0, -600.0, 45.0, 45.0])
+xyz_pts = np.c_[mkvc(xp), mkvc(yp), mkvc(zp)]
+ind2 = utils.model_builder.PolygonInd(mesh, xyz_pts)
 
-magnetization = np.ones((mesh.nC, 3))*background_magnetization
-magnetization[ind, :] = target_magnetization
+magnetization = np.zeros((mesh.nC, 3))
+magnetization[ind2, :] = target_magnetization
 model = magnetization[actv, :]
-
 active_cell_map = maps.InjectActiveCells(mesh=mesh, indActive=actv, valInactive=np.nan)
 
 
@@ -162,38 +178,35 @@ def plot_vector_model(
     )
     
     cb.set_label("amplitude magnetization (A/m)", fontsize=14)
-
-    if outline is True:
-        theta1, theta2 = 0, 0 + 180
-        radius = 120
-        center = (0, -40)
-        w2 = Wedge(center, radius, theta2, theta1, fill=False, edgecolor='black',linestyle="dashed",linewidth=2)
-        circle = plt.Circle((0, 0), 120, color='black', linestyle="dashed", linewidth=2,fill=False) 
-
+    rect = patches.Rectangle((50, 100), 40, 30, linewidth=1, edgecolor='r', facecolor='none')
+    
     if normal.upper() == "X": 
         if plot_data is True: 
             ax.plot(survey_xyz[:, 1], survey_xyz[:, 2], "C1o", ms=4,label=False)
-        if outline is True:
-            ax.add_artist(w2)
-        ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
+        ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.1] if xlim is None else xlim)
         ax.set_title(f"x at {mesh.vectorCCy[ind]} m", fontsize=14)
+        if outline is True:
+            rect = patches.Rectangle(( 0,-310),15, 310, edgecolor='black',linestyle="dashed",linewidth=2, facecolor='none')
+            ax.add_patch(rect)
     elif normal.upper() == "Y": 
         if plot_data is True: 
             ax.plot(survey_xyz[:, 0], survey_xyz[:, 2], "C1o", ms=4,label=False)
-        if outline is True:
-            ax.add_artist(w2)
         ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
-        ax.set_title(f"y at {mesh.vectorCCy[ind]} m", fontsize=14)
         ax.set_title("y at 0 m", fontsize=14)
+        if outline is True:
+            rect = patches.Rectangle(( 0,-310),15, 310, edgecolor='black',linestyle="dashed",linewidth=2, facecolor='none')
+            ax.add_patch(rect)
     elif normal.upper() == "Z": 
         if plot_data is True: 
             ax.plot(survey_xyz[:, 0], survey_xyz[:, 1], "C1o", ms=4,label=False)
-        if outline is True:
-            ax.add_artist(circle)
         ax.set_xlim([survey_x.min()*1.25, survey_x.max()*1.25] if xlim is None else xlim)
         ax.set_ylim([survey_x.min()*1.25, survey_x.max()*1.25] if ylim is None else ylim)
-        ax.set_title(f"z at {mesh.vectorCCy[ind]} m", fontsize=14)
+        ax.set_title(f"z at {int(mesh.vectorCCz[ind])} m", fontsize=14)
+        if outline is True:
+            rect = patches.Rectangle((0,-5),15, 15, edgecolor='black',linestyle="dashed",linewidth=2, facecolor='none')
+            ax.add_patch(rect)
     ax.set_aspect(1)
+    
     
 def plot_amplitude(
         mesh, nC, active_cell_map, maxval, model, ax=None, quiver_opts=None, normal="Y", xlim=None, ylim=None, ind=None, plot_data=True, plot_grid=False, outline=True
@@ -222,44 +235,40 @@ def plot_amplitude(
             )
         
         cb.set_label("amplitude magnetization [A/m]", fontsize=14)
-        
-        if outline is True:
-            theta1, theta2 = 0, 0 + 180
-            radius = 120
-            center = (0, -40)
-            w2 = Wedge(center, radius, theta2, theta1, fill=False, edgecolor='black',linestyle="dashed",linewidth=2)
-            circle = plt.Circle((0, 0), 120, color='black', linestyle="dashed", linewidth=2,fill=False) 
 
         if normal.upper() == "X": 
             if plot_data is True: 
                 ax.plot(survey_xyz[:, 1], survey_xyz[:, 2], "C1o", ms=4,label=False)
-            if outline is True:
-                ax.add_artist(w2)
             ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
             ax.set_title(f"x at {mesh.vectorCCy[ind]} m", fontsize=14)
+            if outline is True:
+                rect = patches.Rectangle(( 0,-310),15, 310, edgecolor='black',linestyle="dashed",linewidth=2, facecolor='none')
+                ax.add_patch(rect)
         elif normal.upper() == "Y": 
             if plot_data is True: 
-                ax.plot(survey_xyz[:, 0], survey_xyz[:, 2], "C1o", ms=4,label=False)
-            if outline is True:
-                ax.add_artist(w2)
+                ax.plot(survey_xyz[:, 0], survey_xyz[:, 2], "C1o", ms=4)
             ax.set_xlim([survey_x.min()*1.5, survey_x.max()*1.5] if xlim is None else xlim)
-            ax.set_title(f"y at {mesh.vectorCCy[ind]} m", fontsize=14)
             ax.set_title("y at 0 m", fontsize=14)
+            if outline is True:
+                rect = patches.Rectangle(( 0,-310),15, 310, edgecolor='black',linestyle="dashed",linewidth=2, facecolor='none')
+                ax.add_patch(rect)
         elif normal.upper() == "Z": 
             if plot_data is True: 
-                ax.plot(survey_xyz[:, 0], survey_xyz[:, 1], "C1o", ms=4,label=False)
-            if outline is True:
-                ax.add_artist(circle)
+                ax.plot(survey_xyz[:, 0], survey_xyz[:, 1], "C1o", ms=4)
             ax.set_xlim([survey_x.min()*1.25, survey_x.max()*1.25] if xlim is None else xlim)
             ax.set_ylim([survey_x.min()*1.25, survey_x.max()*1.25] if ylim is None else ylim)
-            ax.set_title(f"z at {mesh.vectorCCy[ind]} m", fontsize=14)
+            ax.set_title(f"z at {int(mesh.vectorCCz[ind])} m", fontsize=14)
+            if outline is True:
+                rect = patches.Rectangle((0,-5),15, 15, edgecolor='black',linestyle="dashed",linewidth=2, facecolor='none')
+                ax.add_patch(rect)
+
         ax.set_aspect(1)
 
 
 # %%
 
 #for last 5 files in path read in data and plot
-zind = 25
+zind = 13
 spherical_map = maps.SphericalSystem(nP=nC*3)
 
 for file in os.listdir(path):
@@ -276,7 +285,7 @@ for file in os.listdir(path):
         m = model
 
     maxval = np.max(np.abs(m))
-
+    zind = 13
     plot_vector_model(mesh, nC, active_cell_map,maxval,m, ax=ax[0,0])
     plot_vector_model(mesh, nC, active_cell_map,maxval,m, ax=ax[0,1], normal="Z", ind=zind)
     plt.tight_layout()
@@ -290,8 +299,18 @@ for file in os.listdir(path):
     #save figure and save with name of data file    
     plt.savefig(path+"/"+file[:-4]+".png")
     plt.close()
+    zind = 12
+    maxval=np.max(np.abs(m))
+    fig, ax = plt.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [2, 1]})
+    quiver_opts = 'None'
+    plot_amplitude(mesh, nC, active_cell_map,maxval,m, ax=ax[0])
+    plot_amplitude(mesh, nC, active_cell_map,maxval,m, ax=ax[1], normal="Z", ind=zind)
+    plt.tight_layout()
+    plt.savefig(path+"/"+file[:-4]+"_tot.png",bbox_inches='tight')
+    plt.close()
 
-    maxval=target_magnetization_amplitude
+    zind = 11
+    maxval=np.max(np.abs(m))
     fig, ax = plt.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [2, 1]})
     quiver_opts = 'None'
     plot_amplitude(mesh, nC, active_cell_map,maxval,m, ax=ax[0])
