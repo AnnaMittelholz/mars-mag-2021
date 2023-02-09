@@ -309,14 +309,14 @@ for file in os.listdir(path):
     plt.savefig(path+"/"+file[:-4]+"_tot.png",bbox_inches='tight')
     plt.close()
 
-    zind = 11
+    zind = 14
     maxval=np.max(np.abs(m))
     fig, ax = plt.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [2, 1]})
     quiver_opts = 'None'
     plot_amplitude(mesh, nC, active_cell_map,maxval,m, ax=ax[0])
     plot_amplitude(mesh, nC, active_cell_map,maxval,m, ax=ax[1], normal="Z", ind=zind)
     plt.tight_layout()
-    plt.savefig(path+"/"+file[:-4]+"_tot.png",bbox_inches='tight')
+    plt.savefig(path+"/"+file[:-4]+"_tot2.png",bbox_inches='tight')
     plt.close()
    
 
