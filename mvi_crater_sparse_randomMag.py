@@ -383,18 +383,27 @@ if abs(vvmax)<abs(vvmin):
     
 
 ax[0].scatter(survey_xyz[:, 0], survey_xyz[:, 1], marker='o',c=B_obs,s=100, cmap='viridis',vmin=vvmin,vmax=vvmax)
-ax[0].set_title("|B|")
+#ax[0].set_title("|B|")
+plt.yticks(fontsize=18)
+plt.xticks(fontsize=18)
 ax[1].scatter(survey_xyz[:, 0], survey_xyz[:, 1], marker='o',c=d_obs[:,0],s=100, cmap='viridis',vmin=vvmin,vmax=vvmax)
-ax[1].set_title("Bx")
+#ax[1].set_title("Bx")
+plt.yticks(fontsize=18)
+plt.xticks(fontsize=18)
 ax[2].scatter(survey_xyz[:, 0], survey_xyz[:, 1], marker='o',c=d_obs[:,1],s=100, cmap='viridis',vmin=vvmin,vmax=vvmax)
-ax[2].set_title("By")
+#ax[2].set_title("By")
+plt.yticks(fontsize=18)
+plt.xticks(fontsize=18)
 sc =ax[3].scatter(survey_xyz[:, 0], survey_xyz[:, 1], marker='o',c=d_obs[:,2],s=100, cmap='viridis',vmin=vvmin,vmax=vvmax)
-ax[3].set_title("Bz")
-cbar = fig.colorbar(sc)
+#ax[3].set_title("Bz")
+# cbar = fig.colorbar(sc)
 
-
-fn = 'Data_Profiles.png'
-
+plt.yticks(fontsize=18)
+plt.xticks(fontsize=18)
+cbaxes = fig.add_axes([0.93, 0.15, 0.01, 0.7]) 
+cbar = fig.colorbar(sc,cax = cbaxes)
+plt.savefig("../figures/Crater_data.pdf", format="pdf", bbox_inches="tight")
+plt.show
 
 # %%
 # create the regularization

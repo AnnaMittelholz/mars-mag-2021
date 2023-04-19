@@ -352,8 +352,9 @@ d1 = ind0[actv]
 d2 = ind1[actv]
 d3 = ind3[actv]
 
-domains = [d1, d2, d3]
-mapping = maps.SurjectUnits(domains, nP=3) 
+domains = [d1,d2,d3]  # might need to change to d1, d2, d3, ... 
+nP = 3#d1.shape[0] # number of active cells or should this be 3? 
+mapping = maps.SurjectUnits(domains, nP=nP) 
 
 #define magnetization for 3 domains corresponding to above
 m1 = -0.8*(target_magnetization)+1
@@ -364,7 +365,8 @@ mags = mags.reshape(3,3)
 
 # provide active cell map * surjunits
 mapped = mapping.P * mags
-model_map = maps.IdentityMap(nP=mapping.nP)
+#model_map = maps.IdentityMap(nP=mapping.nP) .  # 
+model_map = active_cell_map * mapping
 
 # %% plot mapped to check it looks right and yippe it does :)     
 fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
@@ -382,17 +384,16 @@ prob = mag.simulation.Simulation3DIntegral(
 
 # %% Regularization surject
 regMesh = discretize.TensorMesh([len(domains)])
-wires = maps.Wires(("x", nC), ("y", nC), ("z", nC))
 
-reg_m1_x = regularization.Sparse(regMesh, mapping=wires.x)
-reg_m1_y = regularization.Sparse(regMesh, mapping=wires.y)
-reg_m1_z = regularization.Sparse(regMesh, mapping=wires.z)
-norms = [[2, 2, 2, 2]]
-reg_m1_x.norms = norms
-reg_m1_y.norms = norms
-reg_m1_z.norms = norms
+wires = maps.Wires(("x", 3), ("y", 3), ("z", 3))   # change to lengtyhn pof dmians 
+
+reg_m1_x = regularization.SimpleSmall(regMesh, mapping=wires.x)
+reg_m1_y = regularization.SimpleSmall(regMesh, mapping=wires.y)
+reg_m1_z = regularization.SimpleSmall(regMesh, mapping=wires.z)
 
 reg = reg_m1_x + reg_m1_y + reg_m1_z
+
+# flatten before reg??
 
 # %% 
 dmis = data_misfit.L2DataMisfit(data=synthetic_data, simulation=prob)
@@ -412,11 +413,12 @@ update_Jacobi = directives.UpdatePreconditioner()  # Pre-conditioner
 target = directives.TargetMisfit(chifact=1)  # target misfit 
 
 inv = inversion.BaseInversion(
-    inv_prob, directiveList=[sensitivity_weights, IRLS, update_Jacobi, target]
+    inv_prob, directiveList=[target]
 )
 
 # %% Perform inversion 
-m0 = np.zeros(mapped.shape[0]*3)
+#m0 = np.zeros(nC*3)#mapped.shape[0]*3)
+m0 = np.zeros(len(domains))
 m_surject = inv.run(m0)
 
 # %% and plot L2 inversion 
