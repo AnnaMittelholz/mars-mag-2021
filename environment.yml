@@ -10,8 +10,5 @@ dependencies:
   - matplotlib
   - ipywidgets
   - jupyterlab
-  # - SimPEG=0.15.0
+  - SimPEG=0.16
   - pip
-  - pip:
-    - git+https://github.com/simpeg/discretize.git@lheagy-patch-1
-    - git+https://github.com/simpeg/simpeg.git
