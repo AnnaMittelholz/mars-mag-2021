@@ -119,7 +119,7 @@ mesh = TensorMesh([h, h, hz], x0="CCC")
 # Define an active cells from topo
 actv = utils.surface2ind_topo(mesh, topo)
 nC = int(actv.sum())
-model_map = maps.IdentityMap(nP=nC)  # model is a vlue for each active cell
+# model_map = maps.IdentityMap(nP=nC)  # model is a vlue for each active cell
 
 mesh
 # %% Include structure in model -> here: layers
@@ -161,7 +161,7 @@ magnetization[ind3, :] = target_magnetization+4
 model = magnetization[actv, :]
 
 active_cell_map = maps.InjectActiveCells(mesh=mesh, indActive=actv, valInactive=np.nan)
-idenMap = maps.IdentityMap(nP=nC)
+# idenMap = maps.IdentityMap(nP=nC)
 
 # %% define plotting functions
 
@@ -352,21 +352,36 @@ d1 = ind0[actv]
 d2 = ind1[actv]
 d3 = ind3[actv]
 
-domains = [d1,d2,d3]  # might need to change to d1, d2, d3, ... 
-nP = 3#d1.shape[0] # number of active cells or should this be 3? 
+zeros = np.zeros(actv.sum(), dtype=bool)
+domains = [
+    np.hstack([d1, zeros, zeros]),
+    np.hstack([d2, zeros, zeros]), 
+    np.hstack([d3, zeros, zeros]), 
+    np.hstack([zeros, d1, zeros]), 
+    np.hstack([zeros, d2, zeros]), 
+    np.hstack([zeros, d3, zeros]),
+    np.hstack([zeros, zeros, d1]),
+    np.hstack([zeros, zeros, d2]),
+    np.hstack([zeros, zeros, d3]),
+]
+nP = len(domains)
 mapping = maps.SurjectUnits(domains, nP=nP) 
+
+# domains = [d1,d2,d3]  # might need to change to d1, d2, d3, ... 
+# nP = 3#d1.shape[0] # number of active cells or should this be 3? 
+# mapping = maps.SurjectUnits(domains, nP=nP) 
 
 #define magnetization for 3 domains corresponding to above
 m1 = -0.8*(target_magnetization)+1
 m2 = target_magnetization
 m3 = target_magnetization+4
 mags = np.array([m1,m2,m3])
-mags = mags.reshape(3,3)
+mags = mags.flatten(order="F")  # [m1x, m2x, m3x, m1y, m2y, m3y]
 
 # provide active cell map * surjunits
-mapped = mapping.P * mags
+mapped = mapping * mags
 #model_map = maps.IdentityMap(nP=mapping.nP) .  # 
-model_map = active_cell_map * mapping
+# model_map = active_cell_map * mapping
 
 # %% plot mapped to check it looks right and yippe it does :)     
 fig, ax = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={'width_ratios': [2, 1]})
@@ -378,20 +393,21 @@ plot_vector_model(maxval,mapped, ax=ax[1], normal="Z", ind=zind,plot_data=False,
 plt.tight_layout()
 
 # %% # Create the forward model operator
+model_map = mapping
 prob = mag.simulation.Simulation3DIntegral(
     mesh=mesh, survey=survey, chiMap=model_map, actInd=actv,  model_type="vector", solver=Solver
 )
 
 # %% Regularization surject
 regMesh = discretize.TensorMesh([len(domains)])
+reg = regularization.SimpleSmall(regMesh)
+# wires = maps.Wires(("x", 3), ("y", 3), ("z", 3))   # change to lengtyhn pof dmians 
 
-wires = maps.Wires(("x", 3), ("y", 3), ("z", 3))   # change to lengtyhn pof dmians 
+# reg_m1_x = regularization.SimpleSmall(regMesh, mapping=wires.x)
+# reg_m1_y = regularization.SimpleSmall(regMesh, mapping=wires.y)
+# reg_m1_z = regularization.SimpleSmall(regMesh, mapping=wires.z)
 
-reg_m1_x = regularization.SimpleSmall(regMesh, mapping=wires.x)
-reg_m1_y = regularization.SimpleSmall(regMesh, mapping=wires.y)
-reg_m1_z = regularization.SimpleSmall(regMesh, mapping=wires.z)
-
-reg = reg_m1_x + reg_m1_y + reg_m1_z
+# reg = reg_m1_x + reg_m1_y + reg_m1_z
 
 # flatten before reg??
 
@@ -407,9 +423,9 @@ opt = optimization.InexactGaussNewton(
 inv_prob = inverse_problem.BaseInvProblem(dmis, reg, opt, beta=0)
 
 # directives 
-sensitivity_weights = directives.UpdateSensitivityWeights()  # Add sensitivity weights
-IRLS = directives.Update_IRLS()  # IRLS
-update_Jacobi = directives.UpdatePreconditioner()  # Pre-conditioner
+# sensitivity_weights = directives.UpdateSensitivityWeights()  # Add sensitivity weights
+# IRLS = directives.Update_IRLS()  # IRLS
+# update_Jacobi = directives.UpdatePreconditioner()  # Pre-conditioner
 target = directives.TargetMisfit(chifact=1)  # target misfit 
 
 inv = inversion.BaseInversion(
@@ -419,7 +435,9 @@ inv = inversion.BaseInversion(
 # %% Perform inversion 
 #m0 = np.zeros(nC*3)#mapped.shape[0]*3)
 m0 = np.zeros(len(domains))
-m_surject = inv.run(m0)
+m_rec = inv.run(m0)
+
+m_surject = mapping * m_rec
 
 # %% and plot L2 inversion 
 zind = 5   
